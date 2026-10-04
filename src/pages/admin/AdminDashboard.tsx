@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import type { Profile } from '../../types/database'
@@ -9,6 +10,7 @@ import { BookOpen, LogOut, Plus, Trash2, UserCog } from 'lucide-react'
 
 export default function AdminDashboard() {
   const { profile, signOut } = useAuth()
+  const navigate = useNavigate()
   const [teachers, setTeachers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -87,6 +89,9 @@ export default function AdminDashboard() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">{profile?.email}</span>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/teacher')}>
+            <BookOpen size={16} /> Mijn quizzen
+          </Button>
           <Button variant="ghost" size="sm" onClick={signOut}>
             <LogOut size={16} /> Uitloggen
           </Button>
