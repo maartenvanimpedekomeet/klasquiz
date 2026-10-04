@@ -34,13 +34,22 @@ export default function AdminDashboard() {
     setAddError('')
     setAddLoading(true)
 
-    // Use Supabase admin API via edge function or service role
-    // For now, use a signUp call (self-signup disabled in prod via auth settings)
+    // Save admin session so signUp doesn't log us out
+    const { data: { session: adminSession } } = await supabase.auth.getSession()
+
     const { data, error } = await supabase.auth.signUp({
       email: newEmail,
       password: newPassword,
       options: { data: { role: 'teacher' } },
     })
+
+    // Restore admin session immediately
+    if (adminSession) {
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      })
+    }
 
     if (error || !data.user) {
       setAddError(error?.message ?? 'Kon leerkracht niet aanmaken.')
@@ -48,7 +57,6 @@ export default function AdminDashboard() {
       return
     }
 
-    // Profile is created via DB trigger, but we insert manually as fallback
     await supabase.from('profiles').upsert({
       user_id: data.user.id,
       email: newEmail,
