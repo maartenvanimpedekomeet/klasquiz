@@ -19,6 +19,7 @@ export default function TeacherDashboard() {
     const { data } = await supabase
       .from('quizzes')
       .select('*')
+      .eq('teacher_id', profile?.user_id)
       .order('created_at', { ascending: false })
     setQuizzes(data ?? [])
     setLoading(false)
