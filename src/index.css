@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --kq-purple: #7c3aed;
+    --kq-purple-light: #a78bfa;
+    --kq-yellow: #fbbf24;
+    --kq-green: #10b981;
+    --kq-red: #ef4444;
+    --kq-blue: #3b82f6;
+  }
+}
