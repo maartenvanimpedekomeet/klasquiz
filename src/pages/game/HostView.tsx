@@ -5,6 +5,7 @@ import type { GameSession, QuizWithQuestions, Player, Response } from '../../typ
 import { Button } from '../../components/ui/Button'
 import { Users, Timer, Trophy, ChevronRight, StopCircle, Eye, EyeOff, BarChart2 } from 'lucide-react'
 import { Fireworks } from '../../components/game/Fireworks'
+import { Avatar } from '../../components/game/Avatar'
 
 const OPTION_COLORS = [
   'bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500',
@@ -39,6 +40,8 @@ export default function HostView() {
       .channel(`session-${sessionId}-players`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `session_id=eq.${sessionId}` },
         payload => setPlayers(p => [...p, payload.new as Player]))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `session_id=eq.${sessionId}` },
+        payload => setPlayers(p => p.map(x => x.id === (payload.new as Player).id ? payload.new as Player : x)))
       .subscribe()
 
     const responseSub = supabase
@@ -155,9 +158,12 @@ export default function HostView() {
         <span className="text-xl font-bold">{players.length} speler{players.length !== 1 ? 's' : ''}</span>
       </div>
       {players.length > 0 && (
-        <div className="flex flex-wrap gap-2 max-w-2xl justify-center">
+        <div className="flex flex-wrap gap-3 max-w-3xl justify-center">
           {players.map(p => (
-            <span key={p.id} className="bg-white/20 px-3 py-1.5 rounded-full text-sm font-medium">{p.nickname}</span>
+            <div key={p.id} className="flex items-center gap-2 bg-white/20 pl-1 pr-3 py-1 rounded-full">
+              <Avatar avatar={p.avatar} size="xs" />
+              <span className="text-sm font-medium">{p.nickname}</span>
+            </div>
           ))}
         </div>
       )}
@@ -176,6 +182,7 @@ export default function HostView() {
       <div className="flex gap-4 items-end">
         {topPlayers[1] && (
           <div className="flex flex-col items-center gap-2">
+            <Avatar avatar={topPlayers[1].avatar} size="md" />
             <span className="text-lg font-bold">{topPlayers[1].nickname}</span>
             <div className="bg-gray-400 w-24 h-24 rounded-t-2xl flex items-end justify-center pb-3 text-2xl font-black">2</div>
             <span className="font-bold">{topPlayers[1].total_score} pts</span>
@@ -183,6 +190,7 @@ export default function HostView() {
         )}
         {topPlayers[0] && (
           <div className="flex flex-col items-center gap-2">
+            <Avatar avatar={topPlayers[0].avatar} size="lg" />
             <span className="text-xl font-bold">{topPlayers[0].nickname}</span>
             <div className="bg-yellow-400 text-gray-900 w-28 h-32 rounded-t-2xl flex items-end justify-center pb-3 text-3xl font-black">1</div>
             <span className="font-bold text-lg">{topPlayers[0].total_score} pts</span>
@@ -190,6 +198,7 @@ export default function HostView() {
         )}
         {topPlayers[2] && (
           <div className="flex flex-col items-center gap-2">
+            <Avatar avatar={topPlayers[2].avatar} size="md" />
             <span className="text-lg font-bold">{topPlayers[2].nickname}</span>
             <div className="bg-amber-700 w-24 h-16 rounded-t-2xl flex items-end justify-center pb-3 text-2xl font-black">3</div>
             <span className="font-bold">{topPlayers[2].total_score} pts</span>
@@ -406,8 +415,9 @@ export default function HostView() {
       <h2 className="text-3xl font-black">Top 5</h2>
       <div className="flex flex-col gap-3 w-full max-w-md">
         {topPlayers.map((p, i) => (
-          <div key={p.id} className="bg-white/10 rounded-xl px-5 py-3 flex items-center gap-4">
+          <div key={p.id} className="bg-white/10 rounded-xl px-4 py-3 flex items-center gap-3">
             <span className="text-2xl font-black text-yellow-400 w-8">{i + 1}</span>
+            <Avatar avatar={p.avatar} size="sm" />
             <span className="flex-1 font-semibold text-lg">{p.nickname}</span>
             <span className="font-bold text-yellow-400">{p.total_score} pts</span>
           </div>

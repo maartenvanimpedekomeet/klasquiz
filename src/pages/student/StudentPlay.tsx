@@ -2,9 +2,12 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { supabase } from '../../lib/supabase'
-import type { GameSession, QuizWithQuestions, QuestionWithOptions, Option } from '../../types/database'
+import type { AvatarData, GameSession, QuizWithQuestions, QuestionWithOptions, Option } from '../../types/database'
+import { DEFAULT_AVATAR } from '../../types/database'
 import { Timer, Check, X, MapPin, Send } from 'lucide-react'
 import { Fireworks } from '../../components/game/Fireworks'
+import { Avatar } from '../../components/game/Avatar'
+import { AvatarPicker } from '../../components/game/AvatarPicker'
 
 function pointInPolygon(px: number, py: number, polygon: {x: number; y: number}[]): boolean {
   if (polygon.length < 3) return false
@@ -34,6 +37,7 @@ export default function StudentPlay() {
   const navigate = useNavigate()
   const { playerId, nickname } = (location.state as LocationState) ?? {}
 
+  const [avatar, setAvatar] = useState<AvatarData>(DEFAULT_AVATAR)
   const [session, setSession] = useState<GameSession | null>(null)
   const [quiz, setQuiz] = useState<QuizWithQuestions | null>(null)
   const [currentQ, setCurrentQ] = useState<QuestionWithOptions | null>(null)
@@ -245,14 +249,28 @@ export default function StudentPlay() {
     setDragOrder(items)
   }
 
-  // Waiting for host
+  async function handleAvatarChange(newAvatar: AvatarData) {
+    setAvatar(newAvatar)
+    if (playerId) {
+      await supabase.from('players').update({ avatar: newAvatar }).eq('id', playerId)
+    }
+  }
+
+  // Waiting for host — avatar customiser
   if (session?.status === 'lobby') return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-600 to-indigo-700 flex flex-col items-center justify-center text-white gap-6">
-      <div className="text-6xl">👋</div>
-      <h2 className="text-2xl font-bold">Hallo, {nickname}!</h2>
-      <p className="text-violet-200">Wacht op de leerkracht om te beginnen...</p>
-      <div className="flex gap-1">
-        {[0,1,2].map(i => <div key={i} className="w-2 h-2 bg-violet-300 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+    <div className="min-h-screen bg-gradient-to-br from-violet-600 to-indigo-700 flex flex-col text-white">
+      <div className="flex items-center justify-between px-5 py-4 bg-black/20">
+        <span className="font-bold text-lg">{nickname}</span>
+        <div className="flex items-center gap-2 text-violet-300 text-sm">
+          <span>Wachten op leerkracht</span>
+          <div className="flex gap-0.5">
+            {[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 bg-violet-300 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto flex flex-col items-center px-5 py-6 gap-2">
+        <p className="text-violet-200 text-sm mb-2">Maak jouw avatar aan terwijl je wacht!</p>
+        <AvatarPicker value={avatar} onChange={handleAvatarChange} />
       </div>
     </div>
   )
@@ -260,8 +278,8 @@ export default function StudentPlay() {
   if (finished) return (
     <div className="min-h-screen bg-gradient-to-br from-violet-600 to-indigo-700 flex flex-col items-center justify-center text-white gap-6 px-4">
       <Fireworks />
-      <div className="text-6xl">🏆</div>
-      <h2 className="text-3xl font-bold">Quiz afgerond!</h2>
+      <Avatar avatar={avatar} size="lg" />
+      <h2 className="text-3xl font-bold">Quiz afgerond, {nickname}!</h2>
       {ranking !== null && (
         <div className="bg-white/20 rounded-2xl px-10 py-4 text-center">
           <p className="text-violet-200 mb-1">Jouw eindpositie</p>

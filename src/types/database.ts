@@ -2,6 +2,15 @@ export type QuestionType = 'multiple_choice' | 'drag_order' | 'select_image' | '
 export type SessionStatus = 'lobby' | 'active' | 'finished'
 export type UserRole = 'admin' | 'teacher'
 
+export interface AvatarData {
+  face: string
+  bg: string
+  hat: string
+  extra: string
+}
+
+export const DEFAULT_AVATAR: AvatarData = { face: '😀', bg: 'yellow', hat: '', extra: '' }
+
 export interface Database {
   public: {
     Tables: {
@@ -63,9 +72,9 @@ export interface Database {
         }
       }
       players: {
-        Row: { id: string; session_id: string; nickname: string; total_score: number }
-        Insert: { session_id: string; nickname: string; total_score?: number }
-        Update: { nickname?: string; total_score?: number }
+        Row: { id: string; session_id: string; nickname: string; total_score: number; avatar: AvatarData }
+        Insert: { session_id: string; nickname: string; total_score?: number; avatar?: AvatarData }
+        Update: { nickname?: string; total_score?: number; avatar?: AvatarData }
       }
       responses: {
         Row: {
