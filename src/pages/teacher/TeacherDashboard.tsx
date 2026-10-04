@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { Quiz } from '../../types/database'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Plus, Play, Edit, Trash2, BarChart2, BookOpen, LogOut } from 'lucide-react'
+import { Plus, Play, Edit, Trash2, BarChart2, BookOpen, LogOut, ShieldCheck } from 'lucide-react'
 
 export default function TeacherDashboard() {
   const { profile, signOut } = useAuth()
@@ -61,6 +61,11 @@ export default function TeacherDashboard() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">{profile?.email}</span>
+          {profile?.role === 'admin' && (
+            <Button variant="secondary" size="sm" onClick={() => navigate('/admin')}>
+              <ShieldCheck size={16} /> Admin
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={signOut}>
             <LogOut size={16} /> Uitloggen
           </Button>
