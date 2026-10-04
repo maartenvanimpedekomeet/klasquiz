@@ -21,7 +21,7 @@ export default function LoginPage() {
     const { error } = await signIn(email, password)
     setLoading(false)
     if (error) {
-      setError('Ongeldig e-mailadres of wachtwoord.')
+      setError(error.message || 'Ongeldig e-mailadres of wachtwoord.')
       return
     }
     // Navigate based on role after profile loads — handled by router
