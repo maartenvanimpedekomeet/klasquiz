@@ -9,6 +9,7 @@ import QuizResults from './pages/teacher/QuizResults'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import HostView from './pages/game/HostView'
 import StudentPlay from './pages/student/StudentPlay'
+import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 
 function RequireAuth({ role, children }: { role?: 'admin' | 'teacher'; children: React.ReactElement }) {
   const { user, profile, loading } = useAuth()
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/login" element={
         profile ? <Navigate to={profile.role === 'admin' ? '/admin' : '/teacher'} replace /> : <LoginPage />
       } />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Teacher routes */}
       <Route path="/teacher" element={<RequireAuth><TeacherDashboard /></RequireAuth>} />
