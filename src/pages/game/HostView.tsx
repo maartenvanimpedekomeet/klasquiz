@@ -133,7 +133,7 @@ export default function HostView() {
 
   // Auto-advance to results when all players answered (not for brainstorm)
   useEffect(() => {
-    if (currentQ?.question_type === 'brainstorm') return
+    if (currentQ?.question_type === 'brainstorm' || currentQ?.question_type === 'pin') return
     if (players.length > 0 && currentResponses.length >= players.length && screen === 'question' && session?.status === 'active') {
       goToResults()
     }
