@@ -20,6 +20,17 @@ const OPTION_BAR = [
 
 type Screen = 'question' | 'results' | 'leaderboard'
 
+function Toggle({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-3 text-left cursor-pointer group">
+      <div className={`w-12 h-6 rounded-full relative transition-colors ${active ? 'bg-yellow-400' : 'bg-white/20 group-hover:bg-white/30'}`}>
+        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${active ? 'left-6' : 'left-0.5'}`} />
+      </div>
+      <span className={`text-sm font-medium ${active ? 'text-yellow-300' : 'text-violet-200'}`}>{label}</span>
+    </button>
+  )
+}
+
 export default function HostView() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
@@ -31,6 +42,8 @@ export default function HostView() {
   const [screen, setScreen] = useState<Screen>('question')
   const [timerActive, setTimerActive] = useState(false)
   const [showNames, setShowNames] = useState(false)
+  const [shuffleQuestions, setShuffleQuestions] = useState(false)
+  const [hideScores, setHideScores] = useState(false)
 
   useEffect(() => {
     if (!sessionId) return
@@ -64,8 +77,13 @@ export default function HostView() {
         .from('quizzes').select('*, questions(*, options(*))')
         .eq('id', sess.quiz_id).single()
       if (q) {
-        const sorted = { ...q, questions: q.questions.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index) }
-        setQuiz(sorted as QuizWithQuestions)
+        let questions = q.questions.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index)
+        if (sess.question_order?.length > 0) {
+          questions = sess.question_order
+            .map((id: string) => questions.find((question: { id: string }) => question.id === id))
+            .filter(Boolean)
+        }
+        setQuiz({ ...q, questions } as QuizWithQuestions)
       }
       const { data: ps } = await supabase.from('players').select('*').eq('session_id', sessionId)
       setPlayers(ps ?? [])
@@ -84,10 +102,20 @@ export default function HostView() {
   }, [timerActive, timeLeft])
 
   async function startQuiz() {
-    await supabase.from('game_sessions').update({ status: 'active', current_question_index: 0 }).eq('id', sessionId)
-    setSession(s => s ? { ...s, status: 'active', current_question_index: 0 } : s)
+    let questions = [...quiz!.questions]
+    let question_order = questions.map(q => q.id)
+    if (shuffleQuestions) {
+      question_order = [...question_order].sort(() => Math.random() - 0.5)
+      questions = question_order.map(id => questions.find(q => q.id === id)!)
+      setQuiz(qz => qz ? { ...qz, questions } : qz)
+    }
+    await supabase.from('game_sessions').update({
+      status: 'active', current_question_index: 0,
+      answer_visible: false, hide_scores: hideScores, question_order,
+    }).eq('id', sessionId)
+    setSession(s => s ? { ...s, status: 'active', current_question_index: 0, answer_visible: false, hide_scores: hideScores, question_order } : s)
     setScreen('question')
-    startTimer(quiz!.questions[0].time_limit)
+    startTimer(questions[0].time_limit)
   }
 
   function startTimer(limit: number) {
@@ -97,6 +125,8 @@ export default function HostView() {
 
   async function goToResults() {
     setTimerActive(false)
+    await supabase.from('game_sessions').update({ answer_visible: true }).eq('id', sessionId)
+    setSession(s => s ? { ...s, answer_visible: true } : s)
     const { data } = await supabase.from('players').select('*').eq('session_id', sessionId)
     if (data) setPlayers(data)
     setShowNames(false)
@@ -104,6 +134,7 @@ export default function HostView() {
   }
 
   async function goToLeaderboard() {
+    if (hideScores) { await nextQuestion(); return }
     setScreen('leaderboard')
   }
 
@@ -111,7 +142,7 @@ export default function HostView() {
     if (!session || !quiz) return
     const next = session.current_question_index + 1
     if (next >= quiz.questions.length) {
-      await supabase.from('game_sessions').update({ status: 'finished', is_active: false }).eq('id', sessionId)
+      await supabase.from('game_sessions').update({ status: 'finished', is_active: false, answer_visible: false }).eq('id', sessionId)
       const { data } = await supabase.from('players').select('*').eq('session_id', sessionId)
       if (data) setPlayers(data)
       setSession(s => s ? { ...s, status: 'finished' } : s)
@@ -119,8 +150,8 @@ export default function HostView() {
     }
     setScreen('question')
     setResponses([])
-    await supabase.from('game_sessions').update({ current_question_index: next }).eq('id', sessionId)
-    setSession(s => s ? { ...s, current_question_index: next } : s)
+    await supabase.from('game_sessions').update({ current_question_index: next, answer_visible: false }).eq('id', sessionId)
+    setSession(s => s ? { ...s, current_question_index: next, answer_visible: false } : s)
     startTimer(quiz.questions[next].time_limit)
   }
 
@@ -167,6 +198,10 @@ export default function HostView() {
           ))}
         </div>
       )}
+      <div className="flex flex-col gap-3 items-center">
+        <Toggle active={shuffleQuestions} onClick={() => setShuffleQuestions(v => !v)} label="Shuffle vragen" />
+        <Toggle active={hideScores} onClick={() => setHideScores(v => !v)} label="Verberg punten & leaderboard" />
+      </div>
       <Button size="lg" onClick={startQuiz} disabled={players.length === 0} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold text-lg px-10">
         Start quiz!
       </Button>

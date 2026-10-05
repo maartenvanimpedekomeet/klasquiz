@@ -61,14 +61,19 @@ export interface Database {
           id: string; quiz_id: string; pin_code: string
           is_live: boolean; is_active: boolean
           current_question_index: number; status: SessionStatus
+          answer_visible: boolean
+          hide_scores: boolean
+          question_order: string[]
         }
         Insert: {
           quiz_id: string; pin_code: string; is_live?: boolean; is_active?: boolean
           current_question_index?: number; status?: SessionStatus
+          answer_visible?: boolean; hide_scores?: boolean; question_order?: string[]
         }
         Update: {
           pin_code?: string; is_live?: boolean; is_active?: boolean
           current_question_index?: number; status?: SessionStatus
+          answer_visible?: boolean; hide_scores?: boolean; question_order?: string[]
         }
       }
       players: {

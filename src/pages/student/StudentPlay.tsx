@@ -41,6 +41,7 @@ export default function StudentPlay() {
   const [session, setSession] = useState<GameSession | null>(null)
   const [quiz, setQuiz] = useState<QuizWithQuestions | null>(null)
   const [currentQ, setCurrentQ] = useState<QuestionWithOptions | null>(null)
+  const [shuffledOptions, setShuffledOptions] = useState<Option[]>([])
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [dragOrder, setDragOrder] = useState<Option[]>([])
   const [answered, setAnswered] = useState(false)
@@ -74,7 +75,13 @@ export default function StudentPlay() {
         .eq('id', sess.quiz_id)
         .single()
       if (q) {
-        const sorted = { ...q, questions: q.questions.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index) }
+        let questions = q.questions.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index)
+        if (sess.question_order?.length > 0) {
+          questions = sess.question_order
+            .map((id: string) => questions.find((question: { id: string }) => question.id === id))
+            .filter(Boolean)
+        }
+        const sorted = { ...q, questions }
         setQuiz(sorted as QuizWithQuestions)
         updateCurrentQuestion(sorted as QuizWithQuestions, sess)
       }
@@ -122,9 +129,10 @@ export default function StudentPlay() {
     setIsCorrect(null)
     setBrainstormInput(''); setBrainstormCount(0)
     setPinPos(null)
-    // Shuffle drag-order options so student doesn't see the correct order
+    // Shuffle options so correct answer isn't always first
     const shuffled = [...question.options].sort(() => Math.random() - 0.5)
-    setDragOrder(shuffled)
+    setShuffledOptions(shuffled)
+    setDragOrder([...question.options].sort(() => Math.random() - 0.5))
     if (question.time_limit > 0) {
       setTimeLeft(question.time_limit)
       setStartTime(Date.now())
@@ -301,14 +309,58 @@ export default function StudentPlay() {
     <div className="min-h-screen bg-violet-700 flex items-center justify-center text-white">Laden...</div>
   )
 
-  const mcOptions = currentQ.options.filter(o => o.option_text?.trim())
+  const needsReveal = currentQ.question_type !== 'brainstorm' && currentQ.question_type !== 'pin'
+
+  // Waiting for teacher to reveal results
+  if (answered && needsReveal && !session?.answer_visible) return (
+    <div className="min-h-screen bg-violet-800 flex flex-col items-center justify-center text-white gap-6 px-4">
+      <Avatar avatar={avatar} size="md" />
+      <p className="text-xl font-bold">Antwoord verstuurd!</p>
+      <p className="text-violet-300">Wachten op de resultaten...</p>
+      <div className="flex gap-2">
+        {[0,1,2].map(i => (
+          <div key={i} className="w-3 h-3 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
+        ))}
+      </div>
+    </div>
+  )
+
+  // Feedback screen after reveal
+  if (answered && needsReveal && session?.answer_visible) {
+    const correctOption = shuffledOptions.find(o => o.is_correct) ?? currentQ.options.find(o => o.is_correct)
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center text-white gap-5 px-4 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+        {isCorrect && <Fireworks />}
+        <Avatar avatar={avatar} size="lg" />
+        <div className="text-7xl">{isCorrect ? '✅' : '❌'}</div>
+        <h2 className="text-4xl font-black">{isCorrect ? 'Juist! 🎉' : 'Fout!'}</h2>
+        {!isCorrect && correctOption && (
+          <div className="bg-white/20 rounded-2xl px-6 py-4 text-center max-w-sm">
+            <p className="text-white/80 text-sm mb-2">Het juiste antwoord was:</p>
+            {correctOption.image_url && (
+              <img src={correctOption.image_url} alt="" className="w-24 h-24 rounded-xl object-contain mx-auto mb-2 bg-white/10" />
+            )}
+            {correctOption.option_text && <p className="text-xl font-bold">{correctOption.option_text}</p>}
+          </div>
+        )}
+        {!session?.hide_scores && (
+          <div className="bg-white/20 rounded-2xl px-8 py-4 text-center">
+            <p className="text-white/80 text-sm mb-1">Jouw score</p>
+            <p className="text-4xl font-black">{totalScore}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const mcOptions = shuffledOptions.filter(o => o.option_text?.trim())
 
   // Brainstorm screen
   if (currentQ.question_type === 'brainstorm') return (
     <div className="min-h-screen bg-gradient-to-br from-violet-700 to-indigo-800 text-white flex flex-col">
       <div className="flex items-center justify-between px-4 py-3">
         <span className="text-sm text-violet-300">Hoi {nickname}!</span>
-        <span className="text-sm text-violet-300">{totalScore} pts</span>
+        {!session?.hide_scores && <span className="text-sm text-violet-300">{totalScore} pts</span>}
       </div>
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
         {currentQ.image_url && <img src={currentQ.image_url} alt="" className="max-h-32 rounded-xl object-contain" />}
@@ -359,13 +411,19 @@ export default function StudentPlay() {
             <Timer size={16} /> {timeLeft}s
           </span>
         )}
-        <span className="text-sm text-violet-300">{totalScore} pts</span>
+        {!session?.hide_scores && <span className="text-sm text-violet-300">{totalScore} pts</span>}
       </div>
 
-      {answered && (
+      {answered && session?.answer_visible && (
         <div className={`mx-4 mt-1 rounded-2xl p-3 flex items-center gap-3 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
           {isCorrect ? <Check size={20} /> : <X size={20} />}
           <span className="font-bold">{isCorrect ? 'Juiste plek! 🎉' : 'Niet de juiste plek'}</span>
+        </div>
+      )}
+      {answered && !session?.answer_visible && (
+        <div className="mx-4 mt-1 rounded-2xl p-3 bg-violet-700/60 flex items-center gap-2 text-violet-200 text-sm">
+          <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}</div>
+          Wachten op resultaat...
         </div>
       )}
 
@@ -435,16 +493,8 @@ export default function StudentPlay() {
             <Timer size={16} /> {timeLeft}s
           </span>
         )}
-        <span className="text-sm text-violet-300">{totalScore} pts</span>
+        {!session?.hide_scores && <span className="text-sm text-violet-300">{totalScore} pts</span>}
       </div>
-
-      {/* Answered feedback */}
-      {answered && (
-        <div className={`mx-4 mt-2 rounded-2xl p-4 flex items-center gap-3 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
-          {isCorrect ? <Check size={24} /> : <X size={24} />}
-          <span className="font-bold text-lg">{isCorrect ? 'Juist! 🎉' : 'Fout!'}</span>
-        </div>
-      )}
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-6">
         {currentQ.image_url && (
@@ -489,7 +539,7 @@ export default function StudentPlay() {
           </div>
         ) : currentQ.question_type === 'select_image' ? (
           <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-            {currentQ.options.filter(o => o.image_url || o.option_text?.trim()).map((opt, i) => (
+            {shuffledOptions.filter(o => o.image_url || o.option_text?.trim()).map((opt, i) => (
               <button
                 key={opt.id}
                 disabled={answered}
