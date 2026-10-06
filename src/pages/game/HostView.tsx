@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { GameSession, QuizWithQuestions, Player, Response } from '../../types/database'
 import { Button } from '../../components/ui/Button'
-import { Users, Timer, Trophy, ChevronRight, StopCircle, Eye, EyeOff, BarChart2 } from 'lucide-react'
+import { Users, Timer, Trophy, ChevronRight, Eye, EyeOff, BarChart2 } from 'lucide-react'
 import { Fireworks } from '../../components/game/Fireworks'
 import { Avatar } from '../../components/game/Avatar'
 
@@ -180,9 +180,11 @@ export default function HostView() {
     <div className="min-h-screen bg-gradient-to-br from-violet-800 to-indigo-900 flex flex-col items-center justify-center text-white gap-8">
       <h1 className="text-3xl font-black">{quiz.title}</h1>
       <div className="text-center">
-        <p className="text-violet-300 text-sm uppercase tracking-wider mb-2">Spel-PIN</p>
-        <p className="text-7xl font-black tracking-widest text-yellow-400">{session.pin_code}</p>
-        <p className="text-violet-300 mt-2 text-sm">Ga naar {window.location.origin} en voer de PIN in</p>
+        <p className="text-violet-300 text-sm uppercase tracking-wider mb-3">Surf naar <span className="text-white font-bold">tinyurl.com/klasquiz</span></p>
+        <div className="border-4 border-yellow-400 rounded-3xl px-10 py-5 inline-block">
+          <p className="text-yellow-400 text-xs uppercase tracking-widest font-bold mb-1">SPELPIN</p>
+          <p className="text-8xl font-black tracking-widest text-yellow-400">{session.pin_code}</p>
+        </div>
       </div>
       <div className="bg-white/10 rounded-2xl px-8 py-5 flex items-center gap-3">
         <Users size={20} className="text-violet-300" />
@@ -191,9 +193,9 @@ export default function HostView() {
       {players.length > 0 && (
         <div className="flex flex-wrap gap-3 max-w-3xl justify-center">
           {players.map(p => (
-            <div key={p.id} className="flex items-center gap-2 bg-white/20 pl-1 pr-3 py-1 rounded-full">
-              <Avatar avatar={p.avatar} size="xs" />
-              <span className="text-sm font-medium">{p.nickname}</span>
+            <div key={p.id} className="flex items-center gap-2 bg-white/20 pl-1 pr-4 py-1.5 rounded-full">
+              <Avatar avatar={p.avatar} size="sm" />
+              <span className="font-medium">{p.nickname}</span>
             </div>
           ))}
         </div>
@@ -254,7 +256,10 @@ export default function HostView() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col">
         <div className="flex items-center justify-between px-6 py-3 bg-black/30">
-          <span className="text-sm text-gray-400">Brainstorm — {(session.current_question_index ?? 0) + 1} / {quiz.questions.length}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400">Brainstorm — {(session.current_question_index ?? 0) + 1} / {quiz.questions.length}</span>
+            <span className="text-xs bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded-full font-bold tracking-wider">PIN {session.pin_code}</span>
+          </div>
           <span className="text-sm text-gray-400">{notes.length} antwoord{notes.length !== 1 ? 'en' : ''} · {players.length} spelers</span>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
@@ -279,12 +284,90 @@ export default function HostView() {
             </div>
           )}
         </div>
-        <div className="px-6 py-4 flex justify-between items-center border-t border-gray-800">
-          <Button variant="ghost" size="sm" className="text-gray-400 ml-2" onClick={endGame}>
-            <StopCircle size={16} /> Stop
-          </Button>
+        <div className="px-6 py-4 flex justify-end border-t border-gray-800">
           <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
             Volgende vraag <ChevronRight size={20} />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Drag order results: correct order + per-student submitted orders
+  if (screen === 'results' && currentQ?.question_type === 'drag_order') {
+    const correctOrder = [...currentQ.options].sort((a, b) => (a.correct_order ?? 0) - (b.correct_order ?? 0))
+    const dragResponses = currentResponses.filter(r => r.response_text)
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+        <div className="flex items-center justify-between px-6 py-3 bg-black/30">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400">Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length} — Resultaten</span>
+            <span className="text-xs bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded-full font-bold tracking-wider">PIN {session.pin_code}</span>
+          </div>
+          <span className="text-sm text-gray-400">{dragResponses.length} / {players.length} geantwoord</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center px-6 py-6 gap-6 overflow-y-auto">
+          <h2 className="text-2xl font-black text-center max-w-3xl">{currentQ.question_text}</h2>
+          <div className="w-full max-w-2xl">
+            <p className="text-xs text-green-400 font-bold uppercase tracking-wider mb-3">✓ Juiste volgorde</p>
+            <div className="flex flex-col gap-2">
+              {correctOrder.map((opt, i) => (
+                <div key={opt.id} className="bg-green-500/20 border border-green-500/40 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center font-black text-sm shrink-0">{i + 1}</span>
+                  {opt.image_url && <img src={opt.image_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-black/20 shrink-0" />}
+                  <span className="font-semibold">{opt.option_text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {dragResponses.length > 0 && (
+            <div className="w-full max-w-2xl">
+              <button
+                onClick={() => setShowNames(s => !s)}
+                className={`mb-3 px-4 py-2 rounded-xl font-bold text-sm transition cursor-pointer ${showNames ? 'bg-violet-500 text-white hover:bg-violet-400' : 'bg-violet-500/30 text-violet-300 border border-violet-500/50 hover:bg-violet-500/50'}`}
+              >
+                {showNames ? '▼ Verberg leerlingenantwoorden' : `▶ Toon leerlingenantwoorden (${dragResponses.length})`}
+              </button>
+              {showNames && (
+                <div className="flex flex-col gap-4">
+                  {dragResponses.map(r => {
+                    const player = players.find(p => p.id === r.player_id)
+                    let submittedIds: string[] = []
+                    try { submittedIds = JSON.parse(r.response_text ?? '[]') } catch { /* invalid json */ }
+                    const submittedOrder = submittedIds.map(id => currentQ.options.find(o => o.id === id)).filter(Boolean)
+                    return (
+                      <div key={r.id} className={`rounded-xl border-2 overflow-hidden ${r.is_correct ? 'border-green-500/40 bg-green-500/10' : 'border-red-500/40 bg-red-500/10'}`}>
+                        <div className="px-4 py-2 flex items-center gap-2 border-b border-white/10">
+                          <Avatar avatar={player?.avatar ?? {}} size="xs" />
+                          <span className="font-bold text-sm">{player?.nickname ?? '?'}</span>
+                          {r.is_correct
+                            ? <span className="ml-auto text-green-400 font-bold text-xs">✓ Juist</span>
+                            : <span className="ml-auto text-red-400 font-bold text-xs">✗ Fout</span>
+                          }
+                        </div>
+                        <div className="flex flex-col gap-1 px-4 py-3">
+                          {submittedOrder.map((opt, i) => {
+                            const isCorrectPos = correctOrder[i]?.id === opt?.id
+                            return (
+                              <div key={opt?.id} className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${isCorrectPos ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                                <span className="w-5 font-black">{i + 1}.</span>
+                                {opt?.image_url && <img src={opt.image_url} alt="" className="w-6 h-6 rounded object-contain bg-black/20 shrink-0" />}
+                                <span>{opt?.option_text}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 flex items-center justify-end border-t border-gray-800">
+          <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
+            <BarChart2 size={18} /> Leaderboard
           </Button>
         </div>
       </div>
@@ -300,7 +383,10 @@ export default function HostView() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col">
         <div className="flex items-center justify-between px-6 py-3 bg-black/30">
-          <span className="text-sm text-gray-400">Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length} — Resultaten</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400">Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length} — Resultaten</span>
+            <span className="text-xs bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded-full font-bold tracking-wider">PIN {session.pin_code}</span>
+          </div>
           <span className="text-sm text-gray-400">{pinResponses.length} / {players.length} geantwoord</span>
         </div>
         <div className="flex-1 flex flex-col items-center px-6 py-6 gap-5 overflow-y-auto">
@@ -344,7 +430,12 @@ export default function HostView() {
           )}
         </div>
         <div className="px-6 py-4 flex items-center justify-between border-t border-gray-800">
-          <Button variant="ghost" size="sm" onClick={() => setShowNames(s => !s)} className="text-gray-400 hover:text-white">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowNames(s => !s)}
+            className={showNames ? 'bg-violet-500 text-white hover:bg-violet-400' : 'bg-violet-500/30 text-violet-300 border border-violet-500/50 hover:bg-violet-500/50'}
+          >
             {showNames ? <><EyeOff size={16} /> Verberg namen</> : <><Eye size={16} /> Toon namen</>}
           </Button>
           <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
@@ -372,9 +463,10 @@ export default function HostView() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col">
         <div className="flex items-center justify-between px-6 py-3 bg-black/30">
-          <span className="text-sm text-gray-400">
-            Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length} — Resultaten
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400">Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length} — Resultaten</span>
+            <span className="text-xs bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded-full font-bold tracking-wider">PIN {session.pin_code}</span>
+          </div>
           <span className="text-sm text-gray-400">{total} / {players.length} geantwoord</span>
         </div>
 
@@ -432,7 +524,7 @@ export default function HostView() {
             variant="ghost"
             size="sm"
             onClick={() => setShowNames(s => !s)}
-            className="text-gray-400 hover:text-white"
+            className={showNames ? 'bg-violet-500 text-white hover:bg-violet-400' : 'bg-violet-500/30 text-violet-300 border border-violet-500/50 hover:bg-violet-500/50'}
           >
             {showNames ? <><EyeOff size={16} /> Verberg namen</> : <><Eye size={16} /> Toon namen</>}
           </Button>
@@ -446,7 +538,11 @@ export default function HostView() {
 
   // Leaderboard between questions
   if (screen === 'leaderboard') return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-800 to-indigo-900 flex flex-col items-center justify-center text-white gap-6">
+    <div className="min-h-screen bg-gradient-to-br from-violet-800 to-indigo-900 flex flex-col text-white">
+      <div className="flex items-center justify-end px-6 py-3">
+        <span className="text-xs bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded-full font-bold tracking-wider">PIN {session.pin_code}</span>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
       <h2 className="text-3xl font-black">Top 5</h2>
       <div className="flex flex-col gap-3 w-full max-w-md">
         {topPlayers.map((p, i) => (
@@ -461,6 +557,7 @@ export default function HostView() {
       <Button size="lg" onClick={nextQuestion} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
         <ChevronRight size={20} /> Volgende vraag
       </Button>
+      </div>
     </div>
   )
 
@@ -468,17 +565,17 @@ export default function HostView() {
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <div className="flex items-center justify-between px-6 py-3 bg-black/30">
-        <span className="text-sm text-gray-400">Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length}</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">Vraag {(session.current_question_index ?? 0) + 1} / {quiz.questions.length}</span>
+          <span className="text-xs bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded-full font-bold tracking-wider">PIN {session.pin_code}</span>
+        </div>
+        <div className="flex items-center gap-3">
           {timeLeft > 0 && (
             <span className={`flex items-center gap-1 font-bold text-lg ${timeLeft <= 5 ? 'text-red-400 animate-pulse' : 'text-yellow-400'}`}>
               <Timer size={18} /> {timeLeft}
             </span>
           )}
-          <span className="text-sm text-gray-400 ml-4">{currentResponses.length}/{players.length} geantwoord</span>
-          <Button variant="ghost" size="sm" className="text-gray-400 ml-2" onClick={endGame}>
-            <StopCircle size={16} /> Stop
-          </Button>
+          <span className="text-sm text-gray-400">{currentResponses.length}/{players.length} geantwoord</span>
         </div>
       </div>
 

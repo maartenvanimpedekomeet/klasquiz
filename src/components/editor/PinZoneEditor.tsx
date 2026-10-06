@@ -13,8 +13,14 @@ export function PinZoneEditor({ imageUrl, polygon, onChange }: Props) {
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10
+    // Use clientWidth/clientHeight (excludes border) for accurate coordinates
+    const w = containerRef.current.clientWidth
+    const h = containerRef.current.clientHeight
+    const style = getComputedStyle(containerRef.current)
+    const bl = parseFloat(style.borderLeftWidth)
+    const bt = parseFloat(style.borderTopWidth)
+    const x = Math.round(((e.clientX - rect.left - bl) / w) * 1000) / 10
+    const y = Math.round(((e.clientY - rect.top - bt) / h) * 1000) / 10
     onChange([...polygon, { x, y }])
   }
 

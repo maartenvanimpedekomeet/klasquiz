@@ -119,7 +119,15 @@ export default function StudentPlay() {
       return
     }
     if (sess.status !== 'active') return
-    const question = q.questions[sess.current_question_index]
+    // Apply question_order so host and student always show the same question
+    let orderedQuestions = q.questions
+    if (sess.question_order?.length > 0) {
+      const reordered = (sess.question_order as string[])
+        .map(id => orderedQuestions.find(qx => qx.id === id))
+        .filter(Boolean) as QuestionWithOptions[]
+      if (reordered.length > 0) orderedQuestions = reordered
+    }
+    const question = orderedQuestions[sess.current_question_index]
     // Preload images so they appear immediately
     const urls = [question.image_url, ...question.options.map(o => o.image_url)].filter(Boolean) as string[]
     urls.forEach(url => { const img = new Image(); img.src = url })
@@ -231,11 +239,12 @@ export default function StudentPlay() {
       points = base + Math.max(0, speedBonus)
     }
     setTotalScore(s => s + points)
-    await submitResponse(null, correct, points)
+    const orderText = JSON.stringify(dragOrder.map(o => o.id))
+    await submitResponse(null, correct, points, orderText)
     await supabase.from('players').update({ total_score: totalScore + points }).eq('id', playerId)
   }
 
-  async function submitResponse(optionId: string | null, correct: boolean, points: number) {
+  async function submitResponse(optionId: string | null, correct: boolean, points: number, responseText?: string) {
     if (!currentQ || !sessionId || !playerId) return
     const elapsed = Math.round((Date.now() - startTime) / 1000)
     await supabase.from('responses').insert({
@@ -246,6 +255,7 @@ export default function StudentPlay() {
       is_correct: correct,
       points_awarded: points,
       response_time: elapsed,
+      response_text: responseText ?? null,
     })
   }
 
@@ -287,17 +297,18 @@ export default function StudentPlay() {
     <div className="min-h-screen bg-gradient-to-br from-violet-600 to-indigo-700 flex flex-col items-center justify-center text-white gap-6 px-4">
       <Fireworks />
       <Avatar avatar={avatar} size="lg" />
-      <h2 className="text-3xl font-bold">Quiz afgerond, {nickname}!</h2>
+      <h2 className="text-2xl font-bold">Quiz afgerond, {nickname}!</h2>
       {ranking !== null && (
-        <div className="bg-white/20 rounded-2xl px-10 py-4 text-center">
-          <p className="text-violet-200 mb-1">Jouw eindpositie</p>
-          <p className="text-5xl font-black text-yellow-400">#{ranking}</p>
+        <div className="flex flex-col items-center">
+          <p className="text-violet-300 text-sm uppercase tracking-widest mb-1">Eindpositie</p>
+          <div className="bg-yellow-400 text-gray-900 rounded-3xl px-12 py-5 text-center shadow-2xl">
+            <p className="text-8xl font-black leading-none">#{ranking}</p>
+          </div>
         </div>
       )}
-      <div className="bg-white/20 rounded-2xl px-10 py-6 text-center">
-        <p className="text-violet-200 mb-1">Jouw score</p>
-        <p className="text-5xl font-black text-yellow-400">{totalScore}</p>
-        <p className="text-violet-200 mt-1">punten</p>
+      <div className="bg-white/20 rounded-2xl px-10 py-4 text-center">
+        <p className="text-violet-200 text-sm mb-1">Jouw score</p>
+        <p className="text-4xl font-black text-yellow-400">{totalScore} <span className="text-xl font-normal text-violet-200">pts</span></p>
       </div>
       <button onClick={() => navigate('/')} className="text-violet-200 hover:text-white transition text-sm cursor-pointer">
         Terug naar beginpagina
@@ -538,27 +549,27 @@ export default function StudentPlay() {
             )}
           </div>
         ) : currentQ.question_type === 'select_image' ? (
-          <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+          <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
             {shuffledOptions.filter(o => o.image_url || o.option_text?.trim()).map((opt, i) => (
               <button
                 key={opt.id}
                 disabled={answered}
                 onClick={() => handleAnswer(opt.id)}
-                className={`${OPTION_COLORS[i].bg} rounded-2xl p-3 flex flex-col items-center gap-2 transition cursor-pointer disabled:cursor-default ${selectedOption === opt.id ? OPTION_COLORS[i].active : ''}`}
+                className={`${OPTION_COLORS[i].bg} rounded-2xl p-4 flex flex-col items-center gap-2 transition cursor-pointer disabled:cursor-default ${selectedOption === opt.id ? OPTION_COLORS[i].active : ''}`}
               >
-                {opt.image_url && <img src={opt.image_url} alt="" className="w-full h-28 rounded-xl object-contain bg-black/20" />}
-                <span className="text-sm font-bold">{opt.option_text}</span>
+                {opt.image_url && <img src={opt.image_url} alt="" className="w-full h-36 rounded-xl object-contain bg-black/20" />}
+                <span className="font-bold">{opt.option_text}</span>
               </button>
             ))}
           </div>
         ) : (
-          <div className={`grid gap-3 w-full max-w-sm ${mcOptions.length <= 2 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          <div className={`grid gap-3 w-full max-w-lg ${mcOptions.length <= 2 ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {mcOptions.map((opt, i) => (
               <button
                 key={opt.id}
                 disabled={answered}
                 onClick={() => handleAnswer(opt.id)}
-                className={`${OPTION_COLORS[i].bg} rounded-2xl p-5 text-center font-bold transition cursor-pointer disabled:cursor-default ${selectedOption === opt.id ? OPTION_COLORS[i].active : ''}`}
+                className={`${OPTION_COLORS[i].bg} rounded-2xl px-5 py-7 text-center text-xl font-bold transition cursor-pointer disabled:cursor-default min-h-[90px] ${selectedOption === opt.id ? OPTION_COLORS[i].active : ''}`}
               >
                 {opt.option_text}
               </button>
