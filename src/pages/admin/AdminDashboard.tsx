@@ -38,10 +38,11 @@ export default function AdminDashboard() {
     const { data: { session } } = await supabase.auth.getSession()
     const res = await supabase.functions.invoke('approve-teacher', {
       body: { requestId: req.id, email: req.email },
-      headers: { Authorization: `Bearer ${session?.access_token}` },
+      headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
     })
-    if (res.error || res.data?.error) {
-      alert(`Fout: ${res.data?.error ?? res.error?.message}`)
+    const errMsg = res.data?.error ?? res.error?.message
+    if (errMsg) {
+      alert(`Fout bij goedkeuren:\n${errMsg}`)
     } else {
       setRequests(rs => rs.map(r => r.id === req.id ? { ...r, status: 'approved' } : r))
       loadAll()

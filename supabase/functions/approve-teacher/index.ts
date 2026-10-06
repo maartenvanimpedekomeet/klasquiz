@@ -5,10 +5,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const supabaseAdmin = createClient(
@@ -16,53 +21,48 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // Verify caller is an admin
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
+    // Verify caller is admin
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+    if (!token) return json({ error: 'Geen Authorization header' }, 401)
 
-    const { data: { user: caller } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (!caller) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
+    const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token)
+    if (authErr || !caller) return json({ error: `Auth mislukt: ${authErr?.message}` }, 401)
 
     const { data: profile } = await supabaseAdmin
       .from('profiles').select('role').eq('user_id', caller.id).single()
-    if (profile?.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: corsHeaders })
-    }
+    if (profile?.role !== 'admin') return json({ error: 'Alleen admins mogen dit doen' }, 403)
 
     const { requestId, email } = await req.json()
-    if (!requestId || !email) {
-      return new Response(JSON.stringify({ error: 'Missing requestId or email' }), { status: 400, headers: corsHeaders })
-    }
+    if (!requestId || !email) return json({ error: 'requestId en email zijn verplicht' }, 400)
 
-    // Invite user — Supabase sends an invite email with a link to set their password
-    const { data: { user }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    // Invite user via Supabase Auth
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: 'https://klasquiz-rho.vercel.app/reset-password',
     })
 
-    if (inviteError || !user) {
-      return new Response(
-        JSON.stringify({ error: inviteError?.message ?? 'Invite failed' }),
-        { status: 400, headers: corsHeaders },
-      )
+    if (inviteError || !inviteData?.user) {
+      return json({ error: `Uitnodiging mislukt: ${inviteError?.message}` }, 400)
     }
 
-    // Create teacher profile
-    await supabaseAdmin.from('profiles').insert({
-      user_id: user.id,
+    const invitedUser = inviteData.user
+
+    // Create or update teacher profile
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+      user_id: invitedUser.id,
       email: email,
       role: 'teacher',
-    })
+    }, { onConflict: 'user_id' })
 
-    // Mark request as approved
+    if (profileError) {
+      return json({ error: `Profiel aanmaken mislukt: ${profileError.message}` }, 500)
+    }
+
+    // Mark request approved
     await supabaseAdmin.from('access_requests').update({ status: 'approved' }).eq('id', requestId)
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return json({ success: true })
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: corsHeaders,
-    })
+    return json({ error: `Onverwachte fout: ${String(err)}` }, 500)
   }
 })
