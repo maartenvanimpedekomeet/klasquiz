@@ -12,6 +12,23 @@ export default function TeacherDashboard() {
   const navigate = useNavigate()
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [loading, setLoading] = useState(true)
+  const [showPwModal, setShowPwModal] = useState(false)
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [pwError, setPwError] = useState('')
+  const [pwLoading, setPwLoading] = useState(false)
+
+  async function changePassword() {
+    setPwError('')
+    if (pwNew.length < 6) { setPwError('Minstens 6 tekens.'); return }
+    if (pwNew !== pwConfirm) { setPwError('Wachtwoorden komen niet overeen.'); return }
+    setPwLoading(true)
+    const { error } = await supabase.auth.updateUser({ password: pwNew })
+    setPwLoading(false)
+    if (error) { setPwError(error.message); return }
+    setShowPwModal(false)
+    setPwNew(''); setPwConfirm('')
+  }
 
   useEffect(() => { fetchQuizzes() }, [])
 
@@ -87,13 +104,7 @@ export default function TeacherDashboard() {
               <ShieldCheck size={16} /> Admin
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={async () => {
-            const pw = prompt('Nieuw wachtwoord (minstens 6 tekens):')
-            if (!pw || pw.length < 6) return
-            const { error } = await supabase.auth.updateUser({ password: pw })
-            if (error) alert(`Mislukt: ${error.message}`)
-            else alert('Wachtwoord gewijzigd!')
-          }}>
+          <Button variant="ghost" size="sm" onClick={() => setShowPwModal(true)}>
             <KeyRound size={16} /> Wachtwoord
           </Button>
           <Button variant="ghost" size="sm" onClick={signOut}>
@@ -154,6 +165,50 @@ export default function TeacherDashboard() {
           </div>
         )}
       </main>
+
+      {/* Wachtwoord wijzigen modal */}
+      {showPwModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm flex flex-col gap-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <KeyRound size={18} /> Wachtwoord wijzigen
+            </h3>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Nieuw wachtwoord</label>
+                <input
+                  type="password"
+                  value={pwNew}
+                  onChange={e => setPwNew(e.target.value)}
+                  placeholder="Minstens 6 tekens"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Herhaal wachtwoord</label>
+                <input
+                  type="password"
+                  value={pwConfirm}
+                  onChange={e => setPwConfirm(e.target.value)}
+                  placeholder="Zelfde wachtwoord"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  onKeyDown={e => e.key === 'Enter' && changePassword()}
+                />
+              </div>
+              {pwError && <p className="text-sm text-red-500">{pwError}</p>}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { setShowPwModal(false); setPwNew(''); setPwConfirm(''); setPwError('') }}>
+                Annuleren
+              </Button>
+              <Button size="sm" onClick={changePassword} disabled={pwLoading}>
+                {pwLoading ? 'Bezig...' : 'Opslaan'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

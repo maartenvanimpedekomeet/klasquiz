@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { Profile, AccessRequest } from '../../types/database'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { BookOpen, LogOut, Trash2, UserCog, Mail, Check, X } from 'lucide-react'
+import { BookOpen, LogOut, Trash2, UserCog, Mail, Check, X, KeyRound } from 'lucide-react'
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   pending:  { label: 'In afwachting', className: 'bg-yellow-100 text-yellow-700' },
@@ -21,6 +21,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState<string | null>(null)
   const [passwords, setPasswords] = useState<Record<string, string>>({})
+  // resetPw: { [user_id]: string } for inline teacher password reset
+  const [resetPw, setResetPw] = useState<Record<string, string>>({})
+  const [resetting, setResetting] = useState<string | null>(null)
 
   useEffect(() => { loadAll() }, [])
 
@@ -60,6 +63,28 @@ export default function AdminDashboard() {
   async function rejectRequest(id: string) {
     await supabase.from('access_requests').update({ status: 'rejected' }).eq('id', id)
     setRequests(rs => rs.map(r => r.id === id ? { ...r, status: 'rejected' } : r))
+  }
+
+  async function resetPassword(t: Profile) {
+    const pw = resetPw[t.user_id]?.trim()
+    if (!pw || pw.length < 6) {
+      alert('Voer een nieuw wachtwoord in (minstens 6 tekens).')
+      return
+    }
+    setResetting(t.user_id)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await supabase.functions.invoke('reset-teacher-password', {
+      body: { userId: t.user_id, password: pw },
+      headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+    })
+    const errMsg = res.data?.error ?? res.error?.message
+    if (errMsg) {
+      alert(`Fout:\n${errMsg}`)
+    } else {
+      alert(`✓ Wachtwoord van ${t.email} gewijzigd.\n\nNieuw wachtwoord:\n${pw}`)
+      setResetPw(p => ({ ...p, [t.user_id]: '' }))
+    }
+    setResetting(null)
   }
 
   async function deleteTeacher(userId: string) {
@@ -112,7 +137,6 @@ export default function AdminDashboard() {
             <Card className="p-8 text-center text-gray-400">Nog geen aanvragen.</Card>
           ) : (
             <div className="flex flex-col gap-3">
-              {/* Pending first */}
               {pendingRequests.map(req => (
                 <Card key={req.id} className="p-4 flex items-start gap-4">
                   <div className="flex-1 min-w-0">
@@ -152,7 +176,6 @@ export default function AdminDashboard() {
                 </Card>
               ))}
 
-              {/* History */}
               {otherRequests.length > 0 && (
                 <details className="mt-2">
                   <summary className="text-sm text-gray-400 cursor-pointer hover:text-gray-600 select-none">
@@ -197,6 +220,7 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">E-mailadres</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">Aangemaakt</th>
+                    <th className="px-4 py-3 font-medium text-gray-600 text-right">Wachtwoord instellen</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -204,8 +228,27 @@ export default function AdminDashboard() {
                   {teachers.map((t, i) => (
                     <tr key={t.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-4 py-3 text-gray-800">{t.email}</td>
-                      <td className="px-4 py-3 text-gray-400">
+                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                         {new Date(t.created_at).toLocaleDateString('nl-BE')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 justify-end">
+                          <input
+                            type="text"
+                            placeholder="Nieuw wachtwoord"
+                            value={resetPw[t.user_id] ?? ''}
+                            onChange={e => setResetPw(p => ({ ...p, [t.user_id]: e.target.value }))}
+                            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-40 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          />
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => resetPassword(t)}
+                            disabled={resetting === t.user_id}
+                          >
+                            <KeyRound size={14} /> {resetting === t.user_id ? '...' : 'Instellen'}
+                          </Button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Button variant="danger" size="sm" onClick={() => deleteTeacher(t.user_id)}>
