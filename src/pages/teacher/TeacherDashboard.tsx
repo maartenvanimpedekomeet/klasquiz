@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { Quiz } from '../../types/database'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Plus, Play, Edit, Trash2, BarChart2, BookOpen, LogOut, ShieldCheck } from 'lucide-react'
+import { Plus, Play, Edit, Trash2, BarChart2, BookOpen, LogOut, ShieldCheck, MessageSquare } from 'lucide-react'
 
 export default function TeacherDashboard() {
   const { profile, signOut } = useAuth()
@@ -31,22 +31,43 @@ export default function TeacherDashboard() {
     setQuizzes(q => q.filter(x => x.id !== id))
   }
 
-  async function launchQuiz(quizId: string) {
+  function generatePin() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
-    const pin = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  }
+
+  async function launchQuiz(quizId: string) {
     const { data, error } = await supabase
       .from('game_sessions')
       .insert({
         quiz_id: quizId,
-        pin_code: pin,
+        pin_code: generatePin(),
         is_live: true,
         is_active: true,
         current_question_index: 0,
         status: 'lobby',
+        session_type: 'quiz',
       })
       .select()
       .single()
     if (!error && data) navigate(`/game/${data.id}/host`)
+  }
+
+  async function launchSurvey() {
+    const { data, error } = await supabase
+      .from('game_sessions')
+      .insert({
+        quiz_id: null,
+        pin_code: generatePin(),
+        is_live: true,
+        is_active: true,
+        current_question_index: 0,
+        status: 'lobby',
+        session_type: 'survey',
+      })
+      .select()
+      .single()
+    if (!error && data) navigate(`/survey/${data.id}/host`)
   }
 
   return (
@@ -75,9 +96,14 @@ export default function TeacherDashboard() {
       <main className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Mijn quizzes</h2>
-          <Button onClick={() => navigate('/teacher/quiz/new')}>
-            <Plus size={16} /> Nieuwe quiz
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={launchSurvey}>
+              <MessageSquare size={16} /> Bevraging starten
+            </Button>
+            <Button onClick={() => navigate('/teacher/quiz/new')}>
+              <Plus size={16} /> Nieuwe quiz
+            </Button>
+          </div>
         </div>
 
         {loading ? (

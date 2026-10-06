@@ -20,19 +20,19 @@ export default function LandingPage() {
 
     const { data: session, error: sessionError } = await supabase
       .from('game_sessions')
-      .select('id, status, is_active')
+      .select('id, status, is_active, session_type')
       .eq('pin_code', pin.trim())
       .eq('is_active', true)
       .single()
 
     if (sessionError || !session) {
-      setError('Geen actieve quiz gevonden met deze PIN.')
+      setError('Geen actieve sessie gevonden met deze PIN.')
       setLoading(false)
       return
     }
 
     if (session.status === 'finished') {
-      setError('Deze quiz is al afgelopen.')
+      setError('Deze sessie is al afgelopen.')
       setLoading(false)
       return
     }
@@ -50,7 +50,12 @@ export default function LandingPage() {
       return
     }
 
-    navigate(`/game/${session.id}/play`, { state: { playerId: player.id, nickname: nickname.trim() } })
+    const state = { playerId: player.id, nickname: nickname.trim() }
+    if (session.session_type === 'survey') {
+      navigate(`/survey/${session.id}/play`, { state })
+    } else {
+      navigate(`/game/${session.id}/play`, { state })
+    }
   }
 
   return (

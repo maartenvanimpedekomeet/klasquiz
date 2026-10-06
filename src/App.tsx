@@ -9,6 +9,8 @@ import QuizResults from './pages/teacher/QuizResults'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import HostView from './pages/game/HostView'
 import StudentPlay from './pages/student/StudentPlay'
+import SurveyHost from './pages/survey/SurveyHost'
+import SurveyPlay from './pages/survey/SurveyPlay'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 
 function RequireAuth({ role, children }: { role?: 'admin' | 'teacher'; children: React.ReactElement }) {
@@ -44,6 +46,10 @@ function AppRoutes() {
       {/* Game routes */}
       <Route path="/game/:sessionId/host" element={<RequireAuth><HostView /></RequireAuth>} />
       <Route path="/game/:sessionId/play" element={<StudentPlay />} />
+
+      {/* Survey routes */}
+      <Route path="/survey/:sessionId/host" element={<RequireAuth><SurveyHost /></RequireAuth>} />
+      <Route path="/survey/:sessionId/play" element={<SurveyPlay />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

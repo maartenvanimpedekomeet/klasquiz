@@ -1,6 +1,7 @@
 export type QuestionType = 'multiple_choice' | 'drag_order' | 'select_image' | 'brainstorm' | 'pin'
 export type SessionStatus = 'lobby' | 'active' | 'finished'
 export type UserRole = 'admin' | 'teacher'
+export type SessionType = 'quiz' | 'survey'
 
 export interface AvatarData {
   face: string
@@ -58,23 +59,37 @@ export interface Database {
       }
       game_sessions: {
         Row: {
-          id: string; quiz_id: string; pin_code: string
+          id: string; quiz_id: string | null; pin_code: string
           is_live: boolean; is_active: boolean
           current_question_index: number; status: SessionStatus
           answer_visible: boolean
           hide_scores: boolean
           question_order: string[]
+          session_type: SessionType
+          anonymous: boolean
         }
         Insert: {
-          quiz_id: string; pin_code: string; is_live?: boolean; is_active?: boolean
+          quiz_id?: string | null; pin_code: string; is_live?: boolean; is_active?: boolean
           current_question_index?: number; status?: SessionStatus
           answer_visible?: boolean; hide_scores?: boolean; question_order?: string[]
+          session_type?: SessionType; anonymous?: boolean
         }
         Update: {
           pin_code?: string; is_live?: boolean; is_active?: boolean
           current_question_index?: number; status?: SessionStatus
           answer_visible?: boolean; hide_scores?: boolean; question_order?: string[]
+          session_type?: SessionType; anonymous?: boolean
         }
+      }
+      survey_responses: {
+        Row: {
+          id: string; session_id: string; player_id: string
+          response_text: string; created_at: string
+        }
+        Insert: {
+          session_id: string; player_id: string; response_text: string
+        }
+        Update: Record<string, never>
       }
       players: {
         Row: { id: string; session_id: string; nickname: string; total_score: number; avatar: AvatarData }
@@ -113,3 +128,4 @@ export type Response = Database['public']['Tables']['responses']['Row']
 
 export type QuestionWithOptions = Question & { options: Option[] }
 export type QuizWithQuestions = Quiz & { questions: QuestionWithOptions[] }
+export type SurveyResponse = Database['public']['Tables']['survey_responses']['Row']
