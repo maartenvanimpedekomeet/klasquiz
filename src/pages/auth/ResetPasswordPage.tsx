@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../../components/ui/Button'
@@ -13,10 +13,21 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
 
+  // Capture the URL hash before Supabase clears it
+  const isFromLink = useRef(
+    window.location.hash.includes('type=invite') ||
+    window.location.hash.includes('type=recovery') ||
+    window.location.search.includes('type=invite') ||
+    window.location.search.includes('type=recovery')
+  )
+
   useEffect(() => {
-    // Supabase automatically exchanges the hash tokens and fires this event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true)
+      // PASSWORD_RECOVERY: via "wachtwoord vergeten" link
+      // SIGNED_IN: via uitnodigingslink (invite)
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && isFromLink.current)) {
+        setReady(true)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -30,7 +41,7 @@ export default function ResetPasswordPage() {
     const { error: err } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (err) { setError(err.message); return }
-    navigate('/login')
+    navigate('/teacher')
   }
 
   return (
