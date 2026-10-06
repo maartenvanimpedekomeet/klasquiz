@@ -155,10 +155,6 @@ export default function HostView() {
     startTimer(quiz.questions[next].time_limit)
   }
 
-  async function endGame() {
-    await supabase.from('game_sessions').update({ status: 'finished', is_active: false }).eq('id', sessionId)
-    navigate('/teacher')
-  }
 
   const currentQ = quiz && session ? quiz.questions[session.current_question_index] : null
   const visibleOptions = currentQ?.options.filter(o => o.option_text?.trim() || o.image_url) ?? []
