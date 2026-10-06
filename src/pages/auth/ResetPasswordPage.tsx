@@ -22,10 +22,15 @@ export default function ResetPasswordPage() {
   )
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      // PASSWORD_RECOVERY: via "wachtwoord vergeten" link
-      // SIGNED_IN: via uitnodigingslink (invite)
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && isFromLink.current)) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // PASSWORD_RECOVERY: via "wachtwoord vergeten" / reset link
+      // SIGNED_IN / INITIAL_SESSION: via uitnodigingslink (invite)
+      // INITIAL_SESSION fires immediately on subscribe with the already-processed session
+      const hasSession = !!session
+      if (
+        event === 'PASSWORD_RECOVERY' ||
+        ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && isFromLink.current && hasSession)
+      ) {
         setReady(true)
       }
     })
