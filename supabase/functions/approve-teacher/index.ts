@@ -35,18 +35,39 @@ Deno.serve(async (req) => {
     const { requestId, email } = await req.json()
     if (!requestId || !email) return json({ success: false, error: 'requestId en email zijn verplicht' })
 
-    // Invite user
+    let userId: string
+
+    // Try invite first (works for new users)
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: 'https://klasquiz-rho.vercel.app/reset-password',
     })
 
-    if (inviteError || !inviteData?.user) {
-      return json({ success: false, error: `Uitnodiging mislukt: ${inviteError?.message ?? 'onbekende fout'}` })
+    if (inviteError) {
+      if (!inviteError.message.toLowerCase().includes('already')) {
+        return json({ success: false, error: `Uitnodiging mislukt: ${inviteError.message}` })
+      }
+
+      // User already exists — find them and send a password-reset email instead
+      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+      if (listError) return json({ success: false, error: `Gebruikers ophalen mislukt: ${listError.message}` })
+
+      const existing = users.find(u => u.email === email)
+      if (!existing) return json({ success: false, error: 'Bestaande gebruiker niet gevonden' })
+
+      userId = existing.id
+
+      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://klasquiz-rho.vercel.app/reset-password',
+      })
+      if (resetError) return json({ success: false, error: `Reset-mail mislukt: ${resetError.message}` })
+    } else {
+      if (!inviteData?.user) return json({ success: false, error: 'Uitnodiging geslaagd maar geen user teruggegeven' })
+      userId = inviteData.user.id
     }
 
     // Create or update teacher profile
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
-      user_id: inviteData.user.id,
+      user_id: userId,
       email,
       role: 'teacher',
     }, { onConflict: 'user_id' })
