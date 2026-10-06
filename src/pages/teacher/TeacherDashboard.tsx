@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { Quiz } from '../../types/database'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Plus, Play, Edit, Trash2, BarChart2, BookOpen, LogOut, ShieldCheck, MessageSquare } from 'lucide-react'
+import { Plus, Play, Edit, Trash2, BarChart2, BookOpen, LogOut, ShieldCheck, MessageSquare, KeyRound } from 'lucide-react'
 
 export default function TeacherDashboard() {
   const { profile, signOut } = useAuth()
@@ -87,6 +87,15 @@ export default function TeacherDashboard() {
               <ShieldCheck size={16} /> Admin
             </Button>
           )}
+          <Button variant="ghost" size="sm" onClick={async () => {
+            const pw = prompt('Nieuw wachtwoord (minstens 6 tekens):')
+            if (!pw || pw.length < 6) return
+            const { error } = await supabase.auth.updateUser({ password: pw })
+            if (error) alert(`Mislukt: ${error.message}`)
+            else alert('Wachtwoord gewijzigd!')
+          }}>
+            <KeyRound size={16} /> Wachtwoord
+          </Button>
           <Button variant="ghost" size="sm" onClick={signOut}>
             <LogOut size={16} /> Uitloggen
           </Button>

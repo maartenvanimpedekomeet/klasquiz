@@ -32,37 +32,29 @@ Deno.serve(async (req) => {
       .from('profiles').select('role').eq('user_id', caller.id).single()
     if (callerProfile?.role !== 'admin') return json({ success: false, error: 'Alleen admins mogen dit doen' })
 
-    const { requestId, email } = await req.json()
-    if (!requestId || !email) return json({ success: false, error: 'requestId en email zijn verplicht' })
+    const { requestId, email, password } = await req.json()
+    if (!requestId || !email || !password) return json({ success: false, error: 'requestId, email en password zijn verplicht' })
+
+    // Check if user already exists
+    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers()
+    const existing = users.find(u => u.email === email)
 
     let userId: string
 
-    // Try invite first (works for new users)
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://klasquiz-rho.vercel.app/reset-password',
-    })
-
-    if (inviteError) {
-      if (!inviteError.message.toLowerCase().includes('already')) {
-        return json({ success: false, error: `Uitnodiging mislukt: ${inviteError.message}` })
-      }
-
-      // User already exists — find them and send a password-reset email instead
-      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-      if (listError) return json({ success: false, error: `Gebruikers ophalen mislukt: ${listError.message}` })
-
-      const existing = users.find(u => u.email === email)
-      if (!existing) return json({ success: false, error: 'Bestaande gebruiker niet gevonden' })
-
+    if (existing) {
+      // Update existing user's password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existing.id, { password })
+      if (updateError) return json({ success: false, error: `Wachtwoord bijwerken mislukt: ${updateError.message}` })
       userId = existing.id
-
-      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://klasquiz-rho.vercel.app/reset-password',
-      })
-      if (resetError) return json({ success: false, error: `Reset-mail mislukt: ${resetError.message}` })
     } else {
-      if (!inviteData?.user) return json({ success: false, error: 'Uitnodiging geslaagd maar geen user teruggegeven' })
-      userId = inviteData.user.id
+      // Create new user with confirmed email
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      })
+      if (createError || !newUser?.user) return json({ success: false, error: `Gebruiker aanmaken mislukt: ${createError?.message}` })
+      userId = newUser.user.id
     }
 
     // Create or update teacher profile
@@ -72,9 +64,7 @@ Deno.serve(async (req) => {
       role: 'teacher',
     }, { onConflict: 'user_id' })
 
-    if (profileError) {
-      return json({ success: false, error: `Profiel aanmaken mislukt: ${profileError.message}` })
-    }
+    if (profileError) return json({ success: false, error: `Profiel aanmaken mislukt: ${profileError.message}` })
 
     // Mark request approved
     await supabaseAdmin.from('access_requests').update({ status: 'approved' }).eq('id', requestId)

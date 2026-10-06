@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState<AccessRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState<string | null>(null)
+  const [passwords, setPasswords] = useState<Record<string, string>>({})
 
   useEffect(() => { loadAll() }, [])
 
@@ -34,16 +35,22 @@ export default function AdminDashboard() {
   }
 
   async function approveRequest(req: AccessRequest) {
+    const password = passwords[req.id]?.trim()
+    if (!password || password.length < 6) {
+      alert('Stel eerst een tijdelijk wachtwoord in (minstens 6 tekens).')
+      return
+    }
     setApproving(req.id)
     const { data: { session } } = await supabase.auth.getSession()
     const res = await supabase.functions.invoke('approve-teacher', {
-      body: { requestId: req.id, email: req.email },
+      body: { requestId: req.id, email: req.email, password },
       headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
     })
     const errMsg = res.data?.error ?? res.error?.message
     if (errMsg) {
       alert(`Fout bij goedkeuren:\n${errMsg}`)
     } else {
+      alert(`✓ ${req.email} is aangemaakt.\n\nDeel dit tijdelijke wachtwoord:\n${password}`)
       setRequests(rs => rs.map(r => r.id === req.id ? { ...r, status: 'approved' } : r))
       loadAll()
     }
@@ -118,6 +125,13 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="text"
+                      placeholder="Tijdelijk wachtwoord"
+                      value={passwords[req.id] ?? ''}
+                      onChange={e => setPasswords(p => ({ ...p, [req.id]: e.target.value }))}
+                      className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    />
                     <Button
                       size="sm"
                       onClick={() => approveRequest(req)}
