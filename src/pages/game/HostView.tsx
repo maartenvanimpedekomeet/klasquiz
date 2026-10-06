@@ -175,11 +175,17 @@ export default function HostView() {
   if (session.status === 'lobby') return (
     <div className="min-h-screen bg-gradient-to-br from-violet-800 to-indigo-900 flex flex-col items-center justify-center text-white gap-8">
       <h1 className="text-3xl font-black">{quiz.title}</h1>
-      <div className="text-center">
-        <p className="text-violet-300 text-sm uppercase tracking-wider mb-3">Surf naar <span className="text-white font-bold">tinyurl.com/klasquiz</span></p>
-        <div className="border-4 border-yellow-400 rounded-3xl px-10 py-5 inline-block">
-          <p className="text-yellow-400 text-xs uppercase tracking-widest font-bold mb-1">SPELPIN</p>
-          <p className="text-8xl font-black tracking-widest text-yellow-400">{session.pin_code}</p>
+      <div className="flex items-center gap-8 flex-wrap justify-center">
+        <div className="text-center">
+          <p className="text-violet-300 text-sm uppercase tracking-wider mb-3">Surf naar <span className="text-white font-bold">tinyurl.com/klasquiz</span></p>
+          <div className="border-4 border-yellow-400 rounded-3xl px-10 py-5 inline-block">
+            <p className="text-yellow-400 text-xs uppercase tracking-widest font-bold mb-1">SPELPIN</p>
+            <p className="text-8xl font-black tracking-widest text-yellow-400">{session.pin_code}</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <img src="/qr-klasquiz.png" alt="QR code tinyurl.com/klasquiz" className="w-36 h-36 rounded-2xl bg-white p-2" />
+          <p className="text-violet-300 text-xs">Scan om deel te nemen</p>
         </div>
       </div>
       <div className="bg-white/10 rounded-2xl px-8 py-5 flex items-center gap-3">
