@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { Profile, AccessRequest } from '../../types/database'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { BookOpen, LogOut, Trash2, UserCog, Mail, Check, X, Clock } from 'lucide-react'
+import { BookOpen, LogOut, Trash2, UserCog, Mail, Check, X } from 'lucide-react'
 
 const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   pending:  { label: 'In afwachting', className: 'bg-yellow-100 text-yellow-700' },
