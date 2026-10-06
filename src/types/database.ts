@@ -81,6 +81,14 @@ export interface Database {
           session_type?: SessionType; anonymous?: boolean
         }
       }
+      access_requests: {
+        Row: {
+          id: string; email: string; message: string | null
+          status: string; created_at: string
+        }
+        Insert: { email: string; message?: string | null; status?: string }
+        Update: { status?: string }
+      }
       survey_responses: {
         Row: {
           id: string; session_id: string; player_id: string
@@ -129,3 +137,4 @@ export type Response = Database['public']['Tables']['responses']['Row']
 export type QuestionWithOptions = Question & { options: Option[] }
 export type QuizWithQuestions = Quiz & { questions: QuestionWithOptions[] }
 export type SurveyResponse = Database['public']['Tables']['survey_responses']['Row']
+export type AccessRequest = Database['public']['Tables']['access_requests']['Row']
