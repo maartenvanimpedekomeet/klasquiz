@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import type { GameSession, QuizWithQuestions, Player, Response } from '../../types/database'
 import { Button } from '../../components/ui/Button'
 import { Users, Timer, Trophy, ChevronRight, Eye, EyeOff, BarChart2 } from 'lucide-react'
+import { seededShuffle } from '../../lib/seededShuffle'
 import { Fireworks } from '../../components/game/Fireworks'
 import { Avatar } from '../../components/game/Avatar'
 
@@ -157,7 +158,11 @@ export default function HostView() {
 
 
   const currentQ = quiz && session ? quiz.questions[session.current_question_index] : null
-  const visibleOptions = currentQ?.options.filter(o => o.option_text?.trim() || o.image_url) ?? []
+  const rawOptions = currentQ?.options.filter(o => o.option_text?.trim() || o.image_url) ?? []
+  const seed = (session?.id ?? '') + (currentQ?.id ?? '')
+  const visibleOptions = currentQ?.question_type === 'drag_order'
+    ? rawOptions
+    : seededShuffle(rawOptions, seed)
   const currentResponses = responses.filter(r => currentQ && r.question_id === currentQ.id)
   const topPlayers = [...players].sort((a, b) => b.total_score - a.total_score).slice(0, 5)
 
@@ -367,7 +372,10 @@ export default function HostView() {
             </div>
           )}
         </div>
-        <div className="px-6 py-4 flex items-center justify-end border-t border-gray-800">
+        <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-gray-800">
+          <Button size="lg" variant="secondary" onClick={nextQuestion}>
+            <ChevronRight size={18} /> Volgende vraag
+          </Button>
           <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
             <BarChart2 size={18} /> Leaderboard
           </Button>
@@ -440,9 +448,14 @@ export default function HostView() {
           >
             {showNames ? <><EyeOff size={16} /> Verberg namen</> : <><Eye size={16} /> Toon namen</>}
           </Button>
-          <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
-            <BarChart2 size={18} /> Leaderboard
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button size="lg" variant="secondary" onClick={nextQuestion}>
+              <ChevronRight size={18} /> Volgende vraag
+            </Button>
+            <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
+              <BarChart2 size={18} /> Leaderboard
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -530,9 +543,14 @@ export default function HostView() {
           >
             {showNames ? <><EyeOff size={16} /> Verberg namen</> : <><Eye size={16} /> Toon namen</>}
           </Button>
-          <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
-            <BarChart2 size={18} /> Leaderboard
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button size="lg" variant="secondary" onClick={nextQuestion}>
+              <ChevronRight size={18} /> Volgende vraag
+            </Button>
+            <Button size="lg" onClick={goToLeaderboard} className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold">
+              <BarChart2 size={18} /> Leaderboard
+            </Button>
+          </div>
         </div>
       </div>
     )

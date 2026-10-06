@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { AvatarData, GameSession, QuizWithQuestions, QuestionWithOptions, Option } from '../../types/database'
 import { DEFAULT_AVATAR } from '../../types/database'
 import { Timer, Check, X, MapPin, Send } from 'lucide-react'
+import { seededShuffle } from '../../lib/seededShuffle'
 import { Fireworks } from '../../components/game/Fireworks'
 import { Avatar } from '../../components/game/Avatar'
 import { AvatarPicker } from '../../components/game/AvatarPicker'
@@ -115,7 +116,7 @@ export default function StudentPlay() {
   function updateCurrentQuestion(q: QuizWithQuestions, sess: GameSession) {
     if (sess.status === 'finished') {
       setFinished(true)
-      if (sessionId && playerId) fetchRanking(sessionId, playerId)
+      if (sessionId && playerId) setTimeout(() => fetchRanking(sessionId, playerId), 800)
       return
     }
     if (sess.status !== 'active') return
@@ -137,10 +138,11 @@ export default function StudentPlay() {
     setIsCorrect(null)
     setBrainstormInput(''); setBrainstormCount(0)
     setPinPos(null)
-    // Shuffle options so correct answer isn't always first
-    const shuffled = [...question.options].sort(() => Math.random() - 0.5)
-    setShuffledOptions(shuffled)
-    setDragOrder([...question.options].sort(() => Math.random() - 0.5))
+    // Seeded shuffle: same order for every student in this session
+    const seed = (sess.id ?? '') + (question.id ?? '')
+    const visibleOpts = question.options.filter((o: Option) => o.option_text?.trim() || o.image_url)
+    setShuffledOptions(seededShuffle(visibleOpts, seed))
+    setDragOrder(seededShuffle(visibleOpts, seed + 'drag'))
     if (question.time_limit > 0) {
       setTimeLeft(question.time_limit)
       setStartTime(Date.now())
