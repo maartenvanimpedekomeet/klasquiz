@@ -67,6 +67,7 @@ export interface Database {
           question_order: string[]
           session_type: SessionType
           anonymous: boolean
+          created_at: string
         }
         Insert: {
           quiz_id?: string | null; pin_code: string; is_live?: boolean; is_active?: boolean
