@@ -52,6 +52,8 @@ export default function StudentPlay() {
   const [totalScore, setTotalScore] = useState(0)
   const [finished, setFinished] = useState(false)
   const [ranking, setRanking] = useState<number | null>(null)
+  const [correctCount, setCorrectCount] = useState(0)
+  const [wrongCount, setWrongCount] = useState(0)
   // Brainstorm
   const [brainstormInput, setBrainstormInput] = useState('')
   const [brainstormCount, setBrainstormCount] = useState(0)
@@ -178,6 +180,7 @@ export default function StudentPlay() {
     const zone = currentQ.zone_polygon ?? []
     const correct = pointInPolygon(pinPos.x, pinPos.y, zone)
     setIsCorrect(correct)
+    if (correct) setCorrectCount(c => c + 1); else setWrongCount(c => c + 1)
     const elapsed = (Date.now() - startTime) / 1000
     let points = 0
     if (correct && currentQ.points_enabled) {
@@ -198,6 +201,7 @@ export default function StudentPlay() {
     if (answered || !currentQ) return
     setAnswered(true)
     setIsCorrect(false)
+    setWrongCount(c => c + 1)
     await submitResponse(null, false, 0)
   }
 
@@ -209,6 +213,7 @@ export default function StudentPlay() {
     const option = currentQ.options.find(o => o.id === optionId)
     const correct = option?.is_correct ?? false
     setIsCorrect(correct)
+    if (correct) setCorrectCount(c => c + 1); else setWrongCount(c => c + 1)
 
     const elapsed = (Date.now() - startTime) / 1000
     let points = 0
@@ -232,6 +237,7 @@ export default function StudentPlay() {
       return expected?.id === opt.id
     })
     setIsCorrect(correct)
+    if (correct) setCorrectCount(c => c + 1); else setWrongCount(c => c + 1)
 
     const elapsed = (Date.now() - startTime) / 1000
     let points = 0
@@ -295,11 +301,12 @@ export default function StudentPlay() {
     </div>
   )
 
-  if (finished) return (
+  if (finished || session?.status === 'finished') return (
     <div className="min-h-screen bg-gradient-to-br from-violet-600 to-indigo-700 flex flex-col items-center justify-center text-white gap-6 px-4">
       <Fireworks />
       <Avatar avatar={avatar} size="lg" />
       <h2 className="text-2xl font-bold">Quiz afgerond, {nickname}!</h2>
+
       {ranking !== null && (
         <div className="flex flex-col items-center">
           <p className="text-violet-300 text-sm uppercase tracking-widest mb-1">Eindpositie</p>
@@ -308,10 +315,22 @@ export default function StudentPlay() {
           </div>
         </div>
       )}
-      <div className="bg-white/20 rounded-2xl px-10 py-4 text-center">
-        <p className="text-violet-200 text-sm mb-1">Jouw score</p>
-        <p className="text-4xl font-black text-yellow-400">{totalScore} <span className="text-xl font-normal text-violet-200">pts</span></p>
+
+      <div className="flex gap-4">
+        <div className="bg-green-500/30 border border-green-400/40 rounded-2xl px-6 py-4 text-center">
+          <p className="text-green-300 text-sm mb-1">Juist</p>
+          <p className="text-4xl font-black text-green-300">{correctCount}</p>
+        </div>
+        <div className="bg-red-500/30 border border-red-400/40 rounded-2xl px-6 py-4 text-center">
+          <p className="text-red-300 text-sm mb-1">Fout</p>
+          <p className="text-4xl font-black text-red-300">{wrongCount}</p>
+        </div>
+        <div className="bg-white/20 rounded-2xl px-6 py-4 text-center">
+          <p className="text-violet-200 text-sm mb-1">Score</p>
+          <p className="text-4xl font-black text-yellow-400">{totalScore}</p>
+        </div>
       </div>
+
       <button onClick={() => navigate('/')} className="text-violet-200 hover:text-white transition text-sm cursor-pointer">
         Terug naar beginpagina
       </button>
