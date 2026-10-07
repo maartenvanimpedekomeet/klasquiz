@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     if (callerProfile?.role !== 'admin') return json({ success: false, error: 'Alleen admins mogen dit doen' })
 
     const { requestId, email, password } = await req.json()
-    if (!requestId || !email || !password) return json({ success: false, error: 'requestId, email en password zijn verplicht' })
+    if (!email || !password) return json({ success: false, error: 'email en password zijn verplicht' })
 
     // Check if user already exists
     const { data: { users } } = await supabaseAdmin.auth.admin.listUsers()
@@ -66,8 +66,10 @@ Deno.serve(async (req) => {
 
     if (profileError) return json({ success: false, error: `Profiel aanmaken mislukt: ${profileError.message}` })
 
-    // Mark request approved
-    await supabaseAdmin.from('access_requests').update({ status: 'approved' }).eq('id', requestId)
+    // Mark request approved (only when coming from an access request)
+    if (requestId) {
+      await supabaseAdmin.from('access_requests').update({ status: 'approved' }).eq('id', requestId)
+    }
 
     return json({ success: true })
   } catch (err) {

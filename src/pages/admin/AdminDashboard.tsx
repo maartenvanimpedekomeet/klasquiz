@@ -21,9 +21,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState<string | null>(null)
   const [passwords, setPasswords] = useState<Record<string, string>>({})
-  // resetPw: { [user_id]: string } for inline teacher password reset
   const [resetPw, setResetPw] = useState<Record<string, string>>({})
   const [resetting, setResetting] = useState<string | null>(null)
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -58,6 +60,31 @@ export default function AdminDashboard() {
       loadAll()
     }
     setApproving(null)
+  }
+
+  async function addTeacher() {
+    const email = newEmail.trim()
+    const password = newPassword.trim()
+    if (!email || !password || password.length < 6) {
+      alert('Vul een geldig e-mailadres en wachtwoord in (minstens 6 tekens).')
+      return
+    }
+    setAdding(true)
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    const res = await supabase.functions.invoke('approve-teacher', {
+      body: { requestId: null, email, password },
+      headers: { Authorization: `Bearer ${authSession?.access_token ?? ''}` },
+    })
+    const errMsg = res.data?.error ?? res.error?.message
+    if (errMsg) {
+      alert(`Fout:\n${errMsg}`)
+    } else {
+      alert(`✓ ${email} is aangemaakt.\n\nWachtwoord:\n${password}`)
+      setNewEmail('')
+      setNewPassword('')
+      loadAll()
+    }
+    setAdding(false)
   }
 
   async function rejectRequest(id: string) {
@@ -208,6 +235,31 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-5">
             <UserCog size={22} /> Leerkrachten
           </h2>
+
+          {/* Manual add */}
+          <Card className="p-4 mb-4">
+            <p className="text-sm font-semibold text-gray-700 mb-3">Leerkracht manueel toevoegen</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="email"
+                placeholder="E-mailadres"
+                value={newEmail}
+                onChange={e => setNewEmail(e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-56 focus:outline-none focus:ring-2 focus:ring-violet-400"
+              />
+              <input
+                type="text"
+                placeholder="Tijdelijk wachtwoord"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addTeacher()}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-violet-400"
+              />
+              <Button size="sm" onClick={addTeacher} disabled={adding}>
+                <Check size={14} /> {adding ? 'Bezig...' : 'Toevoegen'}
+              </Button>
+            </div>
+          </Card>
 
           {loading ? (
             <p className="text-gray-400 text-sm">Laden...</p>
