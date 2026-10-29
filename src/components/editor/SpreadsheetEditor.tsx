@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Trash2, Copy, Clipboard, LayoutGrid } from 'lucide-react'
+import { Trash2, Copy, Clipboard, LayoutGrid, ClipboardPaste } from 'lucide-react'
 import type { QuestionType, Question, Option } from '../../types/database'
 
 type DraftOption = Omit<Option, 'id' | 'question_id'> & { tempId: string }
@@ -236,12 +236,24 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
     }
   }
 
-  // Paste from clipboard (onPaste on inputs)
+  // Paste from clipboard (onPaste on inputs and selects)
   function handlePaste(e: React.ClipboardEvent, ri: number, ci: number) {
     const text = e.clipboardData.getData('text/plain')
     if (!text.includes('\t') && !text.includes('\n')) return // single cell — let browser handle
     e.preventDefault()
     pasteAt(text, ri, ci)
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (!text.trim()) return
+      const ri = sel?.r1 ?? 0
+      const ci = sel?.c1 ?? 0
+      pasteAt(text, ri, ci)
+    } catch {
+      alert('Klembord lezen mislukt. Klik eerst in een cel en gebruik dan Ctrl+V.')
+    }
   }
 
   // Global keyboard listener for copy when table has focus but no specific input captured it
@@ -342,6 +354,7 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
                       onChange={e => updateRow(ri, { type: e.target.value as QuestionType })}
                       onFocus={() => selectCell(ri, 0)}
                       onKeyDown={e => handleKeyDown(e, ri, 0, true)}
+                      onPaste={e => handlePaste(e as unknown as React.ClipboardEvent, ri, 0)}
                       className={`${inputBase} text-gray-700`}
                     >
                       <option value="multiple_choice">Meerkeuze</option>
@@ -419,6 +432,7 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
                       onChange={e => updateRow(ri, { time: Number(e.target.value) })}
                       onFocus={() => selectCell(ri, 6)}
                       onKeyDown={e => handleKeyDown(e, ri, 6, true)}
+                      onPaste={e => handlePaste(e as unknown as React.ClipboardEvent, ri, 6)}
                       className={`${inputBase} text-gray-700`}>
                       {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -430,6 +444,7 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
                       onChange={e => updateRow(ri, { points: Number(e.target.value) })}
                       onFocus={() => selectCell(ri, 7)}
                       onKeyDown={e => handleKeyDown(e, ri, 7, true)}
+                      onPaste={e => handlePaste(e as unknown as React.ClipboardEvent, ri, 7)}
                       className={`${inputBase} text-gray-700`}>
                       {POINTS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -457,11 +472,17 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
         </table>
       </div>
 
-      <div className="border-t border-gray-100 px-3 py-2 flex items-center justify-between">
-        <button onClick={goToFirstEmpty}
-          className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-violet-50">
-          ↓ Ga naar eerste lege rij
-        </button>
+      <div className="border-t border-gray-100 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button onClick={goToFirstEmpty}
+            className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-violet-50">
+            ↓ Ga naar eerste lege rij
+          </button>
+          <button onClick={pasteFromClipboard}
+            className="flex items-center gap-1.5 text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer px-3 py-1 rounded font-medium">
+            <ClipboardPaste size={13} /> Plak tabel vanuit klembord
+          </button>
+        </div>
         <p className="text-xs text-gray-400">
           Tab = volgende cel &nbsp;·&nbsp; Shift+klik = bereik selecteren &nbsp;·&nbsp; Ctrl+C = kopieer &nbsp;·&nbsp; Ctrl+V = plak
         </p>
