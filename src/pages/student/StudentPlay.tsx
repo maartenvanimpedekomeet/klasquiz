@@ -44,6 +44,7 @@ export default function StudentPlay() {
   const [currentQ, setCurrentQ] = useState<QuestionWithOptions | null>(null)
   const [shuffledOptions, setShuffledOptions] = useState<Option[]>([])
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [dragOrder, setDragOrder] = useState<Option[]>([])
   const [answered, setAnswered] = useState(false)
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
@@ -136,6 +137,7 @@ export default function StudentPlay() {
     urls.forEach(url => { const img = new Image(); img.src = url })
     setCurrentQ(question)
     setSelectedOption(null)
+    setSelectedOptions([])
     setAnswered(false)
     setIsCorrect(null)
     setBrainstormInput(''); setBrainstormCount(0)
@@ -225,6 +227,29 @@ export default function StudentPlay() {
 
     setTotalScore(s => s + points)
     await submitResponse(optionId, correct, points)
+    await supabase.from('players').update({ total_score: totalScore + points }).eq('id', playerId)
+  }
+
+  async function handleMultiAnswer() {
+    if (answered || !currentQ || selectedOptions.length === 0) return
+    setAnswered(true)
+
+    const correctIds = new Set(currentQ.options.filter(o => o.is_correct).map(o => o.id))
+    const selectedSet = new Set(selectedOptions)
+    const correct = correctIds.size === selectedSet.size && [...correctIds].every(id => selectedSet.has(id))
+
+    setIsCorrect(correct)
+    if (correct) setCorrectCount(c => c + 1); else setWrongCount(c => c + 1)
+
+    const elapsed = (Date.now() - startTime) / 1000
+    let points = 0
+    if (correct && currentQ.points_enabled) {
+      const base = currentQ.points_value ?? 1000
+      const speedBonus = currentQ.time_limit > 0 ? Math.floor((1 - elapsed / currentQ.time_limit) * (base * 0.5)) : 0
+      points = base + Math.max(0, speedBonus)
+    }
+    setTotalScore(s => s + points)
+    await submitResponse(null, correct, points, JSON.stringify(selectedOptions))
     await supabase.from('players').update({ total_score: totalScore + points }).eq('id', playerId)
   }
 
@@ -359,20 +384,26 @@ export default function StudentPlay() {
 
   // Feedback screen after reveal
   if (answered && needsReveal && session?.answer_visible) {
-    const correctOption = shuffledOptions.find(o => o.is_correct) ?? currentQ.options.find(o => o.is_correct)
+    const correctOptionsList = currentQ.options.filter(o => o.is_correct)
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center text-white gap-5 px-4 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
         {isCorrect && <Fireworks />}
         <Avatar avatar={avatar} size="lg" />
         <div className="text-7xl">{isCorrect ? '✅' : '❌'}</div>
         <h2 className="text-4xl font-black">{isCorrect ? 'Juist! 🎉' : 'Fout!'}</h2>
-        {!isCorrect && correctOption && (
-          <div className="bg-white/20 rounded-2xl px-6 py-4 text-center max-w-sm">
-            <p className="text-white/80 text-sm mb-2">Het juiste antwoord was:</p>
-            {correctOption.image_url && (
-              <img src={correctOption.image_url} alt="" className="w-24 h-24 rounded-xl object-contain mx-auto mb-2 bg-white/10" />
-            )}
-            {correctOption.option_text && <p className="text-xl font-bold">{correctOption.option_text}</p>}
+        {!isCorrect && correctOptionsList.length > 0 && (
+          <div className="bg-white/20 rounded-2xl px-6 py-4 text-center max-w-sm w-full">
+            <p className="text-white/80 text-sm mb-2">
+              {correctOptionsList.length > 1 ? 'De juiste antwoorden waren:' : 'Het juiste antwoord was:'}
+            </p>
+            <div className="flex flex-col gap-2">
+              {correctOptionsList.map(opt => (
+                <div key={opt.id} className="flex items-center gap-2 justify-center">
+                  {opt.image_url && <img src={opt.image_url} alt="" className="w-12 h-12 rounded-lg object-contain bg-white/10" />}
+                  {opt.option_text && <p className="text-xl font-bold">{opt.option_text}</p>}
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {!session?.hide_scores && (
@@ -386,6 +417,7 @@ export default function StudentPlay() {
   }
 
   const mcOptions = shuffledOptions.filter(o => o.option_text?.trim())
+  const isMultiAnswer = currentQ.options.filter(o => o.is_correct).length > 1
 
   // Brainstorm screen
   if (currentQ.question_type === 'brainstorm') return (
@@ -583,6 +615,41 @@ export default function StudentPlay() {
               </button>
             ))}
           </div>
+        ) : isMultiAnswer ? (
+          <>
+            <div className="bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 rounded-full px-4 py-1.5 text-sm font-bold">
+              Meerdere juiste antwoorden mogelijk
+            </div>
+            <div className={`grid gap-3 w-full max-w-lg ${mcOptions.length <= 2 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {mcOptions.map((opt, i) => {
+                const isSelected = selectedOptions.includes(opt.id)
+                return (
+                  <button
+                    key={opt.id}
+                    disabled={answered}
+                    onClick={() => setSelectedOptions(prev =>
+                      prev.includes(opt.id) ? prev.filter(id => id !== opt.id) : [...prev, opt.id]
+                    )}
+                    className={`${OPTION_COLORS[i].bg} rounded-2xl px-5 py-7 text-center text-xl font-bold transition cursor-pointer disabled:cursor-default min-h-[90px] flex items-center justify-center gap-3 ${isSelected ? OPTION_COLORS[i].active : 'opacity-80'}`}
+                  >
+                    <span className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shrink-0 transition ${isSelected ? 'bg-white' : 'bg-white/20'}`}>
+                      {isSelected && <Check size={14} className="text-gray-900" />}
+                    </span>
+                    {opt.option_text}
+                  </button>
+                )
+              })}
+            </div>
+            {!answered && (
+              <button
+                onClick={handleMultiAnswer}
+                disabled={selectedOptions.length === 0}
+                className="bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 text-gray-900 font-bold rounded-2xl py-3 px-10 transition cursor-pointer flex items-center gap-2 text-lg"
+              >
+                <Check size={20} /> Klaar!
+              </button>
+            )}
+          </>
         ) : (
           <div className={`grid gap-3 w-full max-w-lg ${mcOptions.length <= 2 ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {mcOptions.map((opt, i) => (
@@ -598,7 +665,7 @@ export default function StudentPlay() {
           </div>
         )}
 
-        {!answered && currentQ.question_type !== 'drag_order' && (
+        {!answered && currentQ.question_type !== 'drag_order' && !isMultiAnswer && (
           <p className="text-gray-500 text-sm">Kies je antwoord</p>
         )}
       </div>

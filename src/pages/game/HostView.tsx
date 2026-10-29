@@ -559,6 +559,11 @@ export default function HostView() {
 
         <div className="flex-1 flex flex-col items-center px-6 py-6 gap-5 overflow-y-auto">
           <h2 className="text-2xl font-black text-center max-w-3xl">{currentQ.question_text}</h2>
+          {currentQ.options.filter(o => o.is_correct).length > 1 && (
+            <div className="bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 rounded-full px-4 py-1.5 text-sm font-bold">
+              Meerdere juiste antwoorden
+            </div>
+          )}
 
           <div className="w-full max-w-3xl flex flex-col gap-3">
             {breakdown.map(({ opt, i, count, playerNames }) => {
@@ -680,6 +685,11 @@ export default function HostView() {
           />
         )}
         <h2 className="text-3xl font-black text-center max-w-3xl">{currentQ?.question_text}</h2>
+        {currentQ && currentQ.options.filter(o => o.is_correct).length > 1 && (
+          <div className="bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 rounded-full px-4 py-1.5 text-sm font-bold">
+            Meerdere juiste antwoorden
+          </div>
+        )}
 
         {currentQ?.question_type !== 'pin' && (
           <div className={`grid gap-4 w-full max-w-3xl ${visibleOptions.length <= 2 ? 'grid-cols-1' : 'grid-cols-2'}`}>
