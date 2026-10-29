@@ -290,6 +290,15 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
 
   return (
     <div className="flex flex-col h-full bg-white select-none">
+      {/* Top toolbar */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+        <button onClick={pasteFromClipboard}
+          className="flex items-center gap-1.5 text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer px-3 py-1.5 rounded-lg font-medium">
+          <ClipboardPaste size={13} /> Plak tabel vanuit klembord
+        </button>
+        <span className="text-xs text-gray-400">of klik in een cel en druk Ctrl+V</span>
+      </div>
+
       {/* Card mode hint for brainstorm/pin */}
       {cardModeHint && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border-b border-amber-200 text-sm text-amber-800">
@@ -472,17 +481,11 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
         </table>
       </div>
 
-      <div className="border-t border-gray-100 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <button onClick={goToFirstEmpty}
-            className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-violet-50">
-            ↓ Ga naar eerste lege rij
-          </button>
-          <button onClick={pasteFromClipboard}
-            className="flex items-center gap-1.5 text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer px-3 py-1 rounded font-medium">
-            <ClipboardPaste size={13} /> Plak tabel vanuit klembord
-          </button>
-        </div>
+      <div className="border-t border-gray-100 px-3 py-2 flex items-center justify-between">
+        <button onClick={goToFirstEmpty}
+          className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-violet-50">
+          ↓ Ga naar eerste lege rij
+        </button>
         <p className="text-xs text-gray-400">
           Tab = volgende cel &nbsp;·&nbsp; Shift+klik = bereik selecteren &nbsp;·&nbsp; Ctrl+C = kopieer &nbsp;·&nbsp; Ctrl+V = plak
         </p>
