@@ -271,6 +271,22 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [copySelection])
 
+  // Global paste listener — catches paste when a <select> cell is focused
+  // (browsers don't fire paste events on select elements, so onPaste prop is ineffective there)
+  useEffect(() => {
+    function onGlobalPaste(e: ClipboardEvent) {
+      const active = document.activeElement
+      if (!tableRef.current?.contains(active)) return
+      if (active?.tagName === 'INPUT') return // inputs handle paste via their own onPaste prop
+      const text = e.clipboardData?.getData('text/plain') ?? ''
+      if (!text.includes('\t') && !text.includes('\n')) return
+      e.preventDefault()
+      pasteAt(text, sel?.r1 ?? 0, sel?.c1 ?? 0)
+    }
+    document.addEventListener('paste', onGlobalPaste)
+    return () => document.removeEventListener('paste', onGlobalPaste)
+  }, [sel, rows])
+
   function goToFirstEmpty() {
     const i = rows.findIndex(r => isRowEmpty(r))
     if (i >= 0) { selectCell(i, 1); focusCell(i, 1) }
@@ -363,7 +379,6 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
                       onChange={e => updateRow(ri, { type: e.target.value as QuestionType })}
                       onFocus={() => selectCell(ri, 0)}
                       onKeyDown={e => handleKeyDown(e, ri, 0, true)}
-                      onPaste={e => handlePaste(e as unknown as React.ClipboardEvent, ri, 0)}
                       className={`${inputBase} text-gray-700`}
                     >
                       <option value="multiple_choice">Meerkeuze</option>
@@ -441,7 +456,6 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
                       onChange={e => updateRow(ri, { time: Number(e.target.value) })}
                       onFocus={() => selectCell(ri, 6)}
                       onKeyDown={e => handleKeyDown(e, ri, 6, true)}
-                      onPaste={e => handlePaste(e as unknown as React.ClipboardEvent, ri, 6)}
                       className={`${inputBase} text-gray-700`}>
                       {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -453,7 +467,6 @@ export function SpreadsheetEditor({ questions, onChange, onSwitchToCardMode }: P
                       onChange={e => updateRow(ri, { points: Number(e.target.value) })}
                       onFocus={() => selectCell(ri, 7)}
                       onKeyDown={e => handleKeyDown(e, ri, 7, true)}
-                      onPaste={e => handlePaste(e as unknown as React.ClipboardEvent, ri, 7)}
                       className={`${inputBase} text-gray-700`}>
                       {POINTS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
