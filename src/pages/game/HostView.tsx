@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { GameSession, QuizWithQuestions, Player, Response } from '../../types/database'
 import { Button } from '../../components/ui/Button'
-import { Users, Timer, Trophy, ChevronRight, Eye, EyeOff, BarChart2 } from 'lucide-react'
+import { Users, Timer, Trophy, ChevronRight, Eye, EyeOff, BarChart2, RefreshCw } from 'lucide-react'
 import { seededShuffle } from '../../lib/seededShuffle'
 import { Fireworks } from '../../components/game/Fireworks'
 import { Avatar } from '../../components/game/Avatar'
@@ -45,6 +45,8 @@ export default function HostView() {
   const [showNames, setShowNames] = useState(false)
   const [shuffleQuestions, setShuffleQuestions] = useState(false)
   const [hideScores, setHideScores] = useState(false)
+  const [weakThreshold, setWeakThreshold] = useState(60)
+  const [replayingWeak, setReplayingWeak] = useState(false)
 
   useEffect(() => {
     if (!sessionId) return
@@ -157,6 +159,53 @@ export default function HostView() {
   }
 
 
+  async function startWeakReplay() {
+    if (!quiz || !session) return
+    setReplayingWeak(true)
+    const { data: allResponses } = await supabase
+      .from('responses').select('question_id,is_correct').eq('session_id', sessionId)
+
+    if (!allResponses) { setReplayingWeak(false); return }
+
+    const weakIds = quiz.questions
+      .filter(q => {
+        if (q.question_type === 'brainstorm') return false
+        const qr = allResponses.filter(r => r.question_id === q.id)
+        if (qr.length === 0) return false
+        const pct = (qr.filter(r => r.is_correct).length / qr.length) * 100
+        return pct < weakThreshold
+      })
+      .map(q => q.id)
+
+    if (weakIds.length === 0) {
+      alert(`Geen vragen waarbij minder dan ${weakThreshold}% van de leerlingen het fout had. Verlaag het percentage en probeer opnieuw.`)
+      setReplayingWeak(false)
+      return
+    }
+
+    const pin = Math.floor(100000 + Math.random() * 900000).toString()
+    const { data: newSession, error } = await supabase
+      .from('game_sessions')
+      .insert({
+        quiz_id: session.quiz_id,
+        pin_code: pin,
+        is_live: true,
+        is_active: true,
+        status: 'lobby',
+        question_order: weakIds,
+        session_type: session.session_type,
+        anonymous: session.anonymous,
+      })
+      .select().single()
+
+    if (error || !newSession) {
+      alert('Fout bij aanmaken van nieuwe sessie.')
+      setReplayingWeak(false)
+      return
+    }
+    navigate(`/host/${newSession.id}`)
+  }
+
   const currentQ = quiz && session ? quiz.questions[session.current_question_index] : null
   const rawOptions = currentQ?.options.filter(o => o.option_text?.trim() || o.image_url) ?? []
   const seed = (session?.id ?? '') + (currentQ?.id ?? '')
@@ -248,6 +297,29 @@ export default function HostView() {
             <span className="font-bold">{topPlayers[2].total_score} pts</span>
           </div>
         )}
+      </div>
+      <div className="bg-white/10 rounded-2xl px-6 py-5 max-w-sm w-full flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-yellow-300 font-bold">
+          <RefreshCw size={18} /> Herspeel moeilijke vragen
+        </div>
+        <p className="text-sm text-violet-200 leading-snug">
+          Start een nieuwe ronde met enkel de vragen waarbij minder dan{' '}
+          <input
+            type="number"
+            min={1} max={100}
+            value={weakThreshold}
+            onChange={e => setWeakThreshold(Math.max(1, Math.min(100, Number(e.target.value))))}
+            className="w-14 text-center bg-white/20 rounded-lg px-1 py-0.5 font-bold text-white mx-1 border border-white/30"
+          />
+          % van de leerlingen het juiste antwoord gaf.
+        </p>
+        <Button
+          onClick={startWeakReplay}
+          disabled={replayingWeak}
+          className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold w-full justify-center"
+        >
+          <RefreshCw size={16} /> {replayingWeak ? 'Bezig...' : 'Start rematch'}
+        </Button>
       </div>
       <Button variant="secondary" onClick={() => navigate('/teacher')} size="lg">
         Terug naar dashboard
